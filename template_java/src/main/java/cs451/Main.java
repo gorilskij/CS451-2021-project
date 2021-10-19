@@ -38,7 +38,7 @@ public class Main {
         System.out.println("My ID: " + parser.myId() + "\n");
         System.out.println("List of resolved hosts is:");
         System.out.println("==========================");
-        for (Host host: parser.hosts()) {
+        for (Host host : parser.hosts()) {
             System.out.println(host.getId());
             System.out.println("Human-readable IP: " + host.getIp());
             System.out.println("Human-readable Port: " + host.getPort());
