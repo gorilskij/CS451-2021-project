@@ -20,4 +20,12 @@ public final class BigEndianCoder {
             + (((bytes[2] + 256) % 256) << 16)
             + (((bytes[3] + 256) % 256) << 24);
     }
+
+    // decode directly from a large array
+    public static int decodeInt(byte[] bytes, int startPosition) {
+        return  (bytes[startPosition] + 256) % 256
+                + (((bytes[startPosition + 1] + 256) % 256) <<  8)
+                + (((bytes[startPosition + 2] + 256) % 256) << 16)
+                + (((bytes[startPosition + 3] + 256) % 256) << 24);
+    }
 }

@@ -8,13 +8,17 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 public class PerfectLinkReceiver extends Thread {
+    private final int processId;
+
     private final DatagramSocket socket;
     private byte[] buf = new byte[256];
 
     private final ArrayList<String> receivedQueue = new ArrayList<>();
+    // TODO: convert back to HashSet
     private final HashMap<Integer, FullAddress> receivedIds = new HashMap<>();
 
-    public PerfectLinkReceiver(DatagramSocket socket) {
+    public PerfectLinkReceiver(int processId, DatagramSocket socket) {
+        this.processId = processId;
         this.socket = socket;
     }
 
@@ -32,17 +36,16 @@ public class PerfectLinkReceiver extends Thread {
                 throw new Error(e);
             }
 
-            Message received = new Message(packet);
+            Message received = Message.received(packet);
 
-            if (receivedIds.containsKey(received.id)) {
-                FullAddress destination = receivedIds.get(received.id);
-                try {
-                    new Message(received.id, "", destination).send(socket);
-                } catch (IOException e) {
-                    /* ignore, try again next iteration */
-                }
+            if (received.messageType != Message.NORMAL_MESSAGE) {
+                throw new IllegalStateException("Expected normal message, got: " + received.messageType);
+            }
+
+            if (receivedIds.containsKey(received.messageId)) {
+                received.sendAcknowledgement(processId, socket);
             } else {
-                receivedIds.put(received.id, received.address);
+                receivedIds.put(received.messageId, received.address);
                 synchronized (receivedQueue) {
                     receivedQueue.add(received.data);
                 }

@@ -12,7 +12,7 @@ public class ReceiverProcess extends Process {
     // just receiver
     public ReceiverProcess(int id, DatagramSocket socket) {
         super(id);
-        perfectLinkReceiver = new PerfectLinkReceiver(socket);
+        perfectLinkReceiver = new PerfectLinkReceiver(id, socket);
         perfectLinkReceiver.start();
     }
 

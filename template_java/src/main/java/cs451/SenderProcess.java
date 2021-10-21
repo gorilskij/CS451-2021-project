@@ -14,7 +14,7 @@ public class SenderProcess extends Process {
     public SenderProcess(int id, DatagramSocket socket, int messagesToSend, FullAddress destination) {
         super(id);
         this.leftToSend = messagesToSend;
-        perfectLinkSender = new PerfectLinkSender(socket, destination);
+        perfectLinkSender = new PerfectLinkSender(id, socket, destination);
         perfectLinkSender.start();
     }
 
