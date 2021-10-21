@@ -13,15 +13,12 @@ public class PerfectLinkSender extends Thread {
     private final ArrayList<Message> sending = new ArrayList<>();
     private final HashSet<Integer> removed = new HashSet<>();
 
-    private final FullAddress destination;
-
-    public PerfectLinkSender(int processId, DatagramSocket socket, FullAddress destination) {
+    public PerfectLinkSender(int processId, DatagramSocket socket) {
         this.processId = processId;
-        this.destination = destination;
         this.socket = socket;
     }
 
-    public void send(String msg) {
+    public void send(String msg, FullAddress destination) {
         System.out.println("Enqueue \"" + msg + "\" to " + destination);
 
         Message message = Message.normalMessage(nextMessageId++, processId, msg, destination);
@@ -61,26 +58,30 @@ public class PerfectLinkSender extends Thread {
                 // TODO: set global max buf size
                 byte[] buf = new byte[256];
                 DatagramPacket packet = new DatagramPacket(buf, buf.length);
-                try {
-                    socket.receive(packet);
-                    Message received = Message.received(packet);
 
-                    if (received.messageType != Message.ACKNOWLEDGEMENT) {
-                        throw new IllegalStateException("expected acknowledgement, got: " + received.messageType);
-                    }
+                // receive all the acknowledgements currently available
+                while (true) {
+                    try {
+                        socket.receive(packet);
+                        Message received = Message.received(packet);
 
-                    if (!removed.contains(received.messageId)) {
-                        if (sending.removeIf(m -> m.messageId == received.messageId)) {
-                            removed.add(received.messageId);
-                            System.out.println("removed " + received.messageId + ", new length: " + sending.size());
-                        } else {
-                            throw new IllegalStateException("sender received a remove command for a message that has never existed: " + received.messageId);
+                        if (received.messageType != Message.ACKNOWLEDGEMENT) {
+                            throw new IllegalStateException("expected acknowledgement, got: " + received.messageType);
                         }
+
+                        if (!removed.contains(received.messageId)) {
+                            if (sending.removeIf(m -> m.messageId == received.messageId)) {
+                                removed.add(received.messageId);
+                                System.out.println("removed " + received.messageId + ", new length: " + sending.size());
+                            } else {
+                                throw new IllegalStateException("sender received a remove command for a message that has never existed: " + received.messageId);
+                            }
+                        }
+                    } catch (SocketTimeoutException e) {
+                        break;
+                    } catch (IOException e) {
+                        throw new Error(e);
                     }
-                } catch (SocketTimeoutException e) {
-                    // nothing received
-                } catch (IOException e) {
-                    throw new Error(e);
                 }
             }
 

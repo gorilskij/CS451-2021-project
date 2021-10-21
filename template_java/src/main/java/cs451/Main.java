@@ -1,21 +1,22 @@
 package cs451;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.net.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 
 public class Main {
+    private static final EventHistory eventHistory = new EventHistory();
+    private static String outputFilePath;
 
     private static void handleSignal() {
         //immediately stop network packet processing
         System.out.println("Immediately stopping network packet processing.");
+        // TODO: separate immediate termination mechanism
 
         //write/flush output file if necessary
         System.out.println("Writing output.");
+        eventHistory.writeToFile(outputFilePath);
     }
 
     private static void initSignalHandlers() {
@@ -52,6 +53,7 @@ public class Main {
         System.out.println("Path to output:");
         System.out.println("===============");
         System.out.println(parser.output() + "\n");
+        outputFilePath = parser.output();
 
         System.out.println("Path to config:");
         System.out.println("===============");
@@ -68,6 +70,8 @@ public class Main {
         } catch (IOException e) {
             throw new Error(e);
         }
+
+
 
 
         // TODO: redo
@@ -96,8 +100,6 @@ public class Main {
 
         FullAddress receiverFullAddress = new FullAddress(receiverAddress, receiverPort);
 
-        System.out.println("MY PORT: " + myPort);
-
         DatagramSocket socket;
         try {
             socket = new DatagramSocket(myPort);
@@ -106,16 +108,44 @@ public class Main {
             throw new Error(e);
         }
 
-        ReceiverProcess receiverProcess = new ReceiverProcess(parser.myId(), socket);
+        PerfectLinkSender plSender = new PerfectLinkSender(parser.myId(), socket);
+        PerfectLinkReceiver plReceiver = new PerfectLinkReceiver(parser.myId(), socket);
+
 
         System.out.println("Broadcasting and delivering messages...\n");
+
+        // send
         if (parser.myId() != receiverId) {
-            SenderProcess senderProcess = new SenderProcess(parser.myId(), socket, numMessages, receiverFullAddress);
-            senderProcess.start();
-            senderProcess.join();
+            plSender.start();
+
+            for (int i = 0; i < numMessages; i++) {
+                plSender.send("message " + i + " from process " + parser.myId(), receiverFullAddress);
+                eventHistory.logBroadcast(i);
+            }
+
+            plSender.interrupt();
+            try {
+                plSender.join();
+            } catch (InterruptedException ignored) {
+            }
         }
-        receiverProcess.start();
-        receiverProcess.join(); // never terminates
+
+
+        // receive (forever)
+        plReceiver.start();
+        while (true) {
+            Message delivered;
+            while ((delivered = plReceiver.deliver()) != null) {
+                System.out.println("DELIVER ID " + delivered.messageId + " FROM " + delivered.sourceId);
+                eventHistory.logDelivery(delivered.sourceId, delivered.messageId);
+            }
+
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                break;
+            }
+        }
 
         // After a process finishes broadcasting,
         // it waits forever for the delivery of messages.
