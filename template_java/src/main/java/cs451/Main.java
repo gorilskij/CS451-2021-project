@@ -3,7 +3,10 @@ package cs451;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.net.Socket;
+import java.net.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.ArrayList;
 
 public class Main {
 
@@ -55,14 +58,66 @@ public class Main {
         System.out.println(parser.config() + "\n");
 
         System.out.println("Doing some initialization\n");
+        int numMessages;
+        int receiverId;
+        try {
+            String config = Files.readString(Paths.get(parser.config())).stripTrailing();
+            String[] components = config.split(" ");
+            numMessages = Integer.parseInt(components[0]);
+            receiverId = Integer.parseInt(components[1]);
+        } catch (IOException e) {
+            throw new Error(e);
+        }
+
+
+        // TODO: redo
+        InetAddress receiverAddress = null;
+        int receiverPort = -1;
+        int myPort = -1;
+        for (Host host : parser.hosts()) {
+            if (host.getId() == receiverId) {
+                try {
+                    receiverAddress = InetAddress.getByName(host.getIp());
+                } catch (UnknownHostException e) {
+                    throw new Error(e);
+                }
+                receiverPort = host.getPort();
+            }
+
+            if (host.getId() == parser.myId()) {
+                myPort = host.getPort();
+            }
+
+            // TODO: improve this find thing
+            if (receiverPort > -1 && myPort > -1) {
+                break;
+            }
+        }
+
+        FullAddress receiverFullAddress = new FullAddress(receiverAddress, receiverPort);
+
+        System.out.println("MY PORT: " + myPort);
+
+        DatagramSocket socket;
+        try {
+            socket = new DatagramSocket(myPort);
+            socket.setSoTimeout(10);
+        } catch (SocketException e) {
+            throw new Error(e);
+        }
+
+        ReceiverProcess receiverProcess = new ReceiverProcess(parser.myId(), socket);
 
         System.out.println("Broadcasting and delivering messages...\n");
+        if (parser.myId() != receiverId) {
+            SenderProcess senderProcess = new SenderProcess(parser.myId(), socket, numMessages, receiverFullAddress);
+            senderProcess.start();
+            senderProcess.join();
+        }
+        receiverProcess.start();
+        receiverProcess.join(); // never terminates
 
         // After a process finishes broadcasting,
         // it waits forever for the delivery of messages.
-        while (true) {
-            // Sleep for 1 hour
-            Thread.sleep(60 * 60 * 1000);
-        }
     }
 }

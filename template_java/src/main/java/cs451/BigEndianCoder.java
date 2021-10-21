@@ -11,6 +11,7 @@ public final class BigEndianCoder {
         };
     }
 
+    // inverse operation of encodeInt
     public static int decodeInt(byte[] bytes) {
         assert bytes.length == 4 :
             "wrong length, expected 4 but got " + bytes.length;
