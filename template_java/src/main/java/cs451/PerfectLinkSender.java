@@ -3,6 +3,7 @@ package cs451;
 import java.io.IOException;
 import java.net.*;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 
 public class PerfectLinkSender extends Thread {
@@ -10,7 +11,7 @@ public class PerfectLinkSender extends Thread {
 
     private final DatagramSocket socket;
     private int nextMessageId = 0;
-    private final ArrayList<Message> sending = new ArrayList<>();
+    private final HashMap<Integer, Message> sending = new HashMap<>();
     private final HashSet<Integer> removed = new HashSet<>();
 
     public PerfectLinkSender(int processId, DatagramSocket socket) {
@@ -21,9 +22,10 @@ public class PerfectLinkSender extends Thread {
     public void send(String msg, FullAddress destination) {
         System.out.println("Enqueue \"" + msg + "\" to " + destination);
 
-        Message message = Message.normalMessage(nextMessageId++, processId, msg, destination);
+        int messageId = nextMessageId++;
+        Message message = Message.normalMessage(messageId, processId, msg, destination);
         synchronized (sending) {
-            sending.add(message);
+            sending.put(messageId, message);
         }
     }
 
@@ -47,7 +49,7 @@ public class PerfectLinkSender extends Thread {
                 }
 
                 // TODO: do this less often
-                for (Message message : sending) {
+                for (Message message : sending.values()) {
                     try {
                         message.send(socket);
                     } catch (IOException e) {
@@ -70,9 +72,8 @@ public class PerfectLinkSender extends Thread {
                         }
 
                         if (!removed.contains(received.messageId)) {
-                            if (sending.removeIf(m -> m.messageId == received.messageId)) {
+                            if (sending.remove(received.messageId) != null) {
                                 removed.add(received.messageId);
-                                System.out.println("removed " + received.messageId + ", new length: " + sending.size());
                             } else {
                                 throw new IllegalStateException("sender received a remove command for a message that has never existed: " + received.messageId);
                             }

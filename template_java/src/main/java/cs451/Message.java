@@ -65,7 +65,7 @@ public class Message {
     }
 
     public void send(DatagramSocket socket) throws IOException {
-        System.out.println("Send \"" + data + "\" to " + address);
+//        System.out.println("Send \"" + data + "\" to " + address);
 
         DatagramPacket packet = new DatagramPacket(bytes, bytes.length, address.address, address.port);
         socket.send(packet);
