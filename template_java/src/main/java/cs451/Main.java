@@ -121,27 +121,23 @@ public class Main {
         }
 
         long start = System.nanoTime();
-        long expectedMsgs = 50_000;
-        long totalMsgs = 0;
+        int expectedMsgs = (parser.hosts().size() - 1) * numMessages;
+        int totalMsgs = 0;
 
         // receive (forever)
         outer:
         while (true) {
             Message delivered;
             while ((delivered = perfectLink.deliver()) != null) {
+                totalMsgs += 1;
+
                 System.out.println("DELIVER ID " + delivered.messageId + " FROM " + delivered.sourceId);
+                System.out.println("  total: " + totalMsgs);
                 eventHistory.logDelivery(delivered.sourceId, delivered.messageId);
 
-                totalMsgs += 1;
                 if (totalMsgs == expectedMsgs) {
                     break outer;
                 }
-            }
-
-            try {
-                Thread.sleep(10);
-            } catch (InterruptedException e) {
-                break;
             }
         }
 

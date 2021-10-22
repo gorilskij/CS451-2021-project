@@ -4,10 +4,8 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketTimeoutException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Objects;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 // just a tuple class to uniquely identify each message (message id, sender id)
@@ -34,86 +32,84 @@ class MessageKey {
     }
 }
 
-class SendingMessage {
-    static final long TIMEOUT_NANOS = 100_000_000L; // 100ms
-
-    private final Message message;
-    long lastSentNanoTime = 0;
-
-    SendingMessage(Message message) {
-        this.message = message;
-    }
-
-    void send(long nanoTime, DatagramSocket socket) {
-        message.send(socket);
-        lastSentNanoTime = nanoTime;
-    }
-
-    long leftToWait(long nanoTime) {
-        return TIMEOUT_NANOS - (nanoTime - lastSentNanoTime);
-    }
-}
-
-
 class SendThread extends Thread {
-    private final DatagramSocket socket;
-    private final HashMap<Integer, SendingMessage> sending;
+    private final int SENDING_BATCH_SIZE = 100;
 
-    public SendThread(DatagramSocket socket, HashMap<Integer, SendingMessage> sending) {
+    private final DatagramSocket socket;
+    private final HashMap<Integer, Message> allMessages = new HashMap<>();
+    private final HashMap<Integer, Message> sendingBatch = new HashMap<>();
+    // ids of messages that have been sent and successfully received
+    private final HashSet<Integer> removed = new HashSet<>();
+
+    public SendThread(DatagramSocket socket) {
         this.socket = socket;
-        this.sending = sending;
+    }
+
+    public void send(Message message) {
+        synchronized (sendingBatch) {
+            if (sendingBatch.size() < SENDING_BATCH_SIZE) {
+                message.send(socket);
+                sendingBatch.put(message.messageId, message);
+            } else {
+                synchronized (allMessages) {
+                    allMessages.put(message.messageId, message);
+                }
+            }
+        }
+    }
+
+    public void remove(int messageId) {
+        System.out.println("call remove");
+        synchronized (sendingBatch) {
+            if (removed.add(messageId)) {
+                Message removedMessage = sendingBatch.remove(messageId);
+                if (removedMessage == null) {
+                    throw new IllegalStateException(
+                            "sender received a remove command for a message that has never existed: " + messageId
+                    );
+                }
+
+                // add a message from allMessages to sendingBatch and send it in the process
+                synchronized (allMessages) {
+                    Optional<Integer> firstKey = allMessages.keySet().stream().findFirst();
+                    if (firstKey.isPresent()) {
+                        Message newMessage = allMessages.remove(firstKey.get());
+                        newMessage.send(socket);
+                        sendingBatch.put(newMessage.messageId, newMessage);
+                        System.out.println("sent message " + newMessage.messageId + " due to ack received for " + messageId);
+                    }
+                }
+            }
+        }
     }
 
     @Override
     public void run() {
-        long nextSendAttemptNanoTime = 0;
-
         while (true) {
-            synchronized (sending) {
-                if (sending.isEmpty()) {
-                    if (isInterrupted()) {
-                        System.out.println("PerfectLinkSender says GOODBYE");
-                        break;
-                    } else {
-                        try {
-                            Thread.sleep(SendingMessage.TIMEOUT_NANOS / 1_000_000);
-                        } catch (InterruptedException e) {
-                            // set isInterrupted() to return true (this is not automatic!)
-                            interrupt();
-                        }
-                    }
-                }
-
-                long nanoTime = System.nanoTime();
-                if (nanoTime >= nextSendAttemptNanoTime) {
-                    System.out.println("henlou");
-                    int msgsSent = 0;
-                    long minLeftToWait = SendingMessage.TIMEOUT_NANOS;
-                    for (SendingMessage message : sending.values()) {
-                        long leftToWait = message.leftToWait(nanoTime);
-                        if (leftToWait <= 0) {
-                            message.send(nanoTime, socket);
-                            msgsSent += 1;
-                        } else if (leftToWait < minLeftToWait) {
-                            minLeftToWait = leftToWait;
-                        }
-                    }
-                    System.out.println("sent msgs: " + msgsSent);
-                    nextSendAttemptNanoTime = nanoTime + minLeftToWait;
-                }
-            }
-
-            long sleepNanoTime = nextSendAttemptNanoTime - System.nanoTime();
-            if (sleepNanoTime < 1_000_000 /* 1ms */) {
-                sleepNanoTime = 1_000_000;
-            } else if (sleepNanoTime > 10_000_000 /* 10ms */) {
-                sleepNanoTime = 10_000_000;
-            }
             try {
-                Thread.sleep(sleepNanoTime / 1_000_000);
+                Thread.sleep(10);
             } catch (InterruptedException e) {
-                // set isInterrupted() to return true (this is not automatic!)
                 interrupt();
+            }
+
+            if (isInterrupted()) {
+                synchronized (allMessages) {
+                    synchronized (sendingBatch) {
+                        if (allMessages.isEmpty() && sendingBatch.isEmpty()) {
+                            break;
+                        }
+                    }
+                }
+            }
+
+            System.out.println("henlou");
+            synchronized (sendingBatch) {
+                for (Message message : sendingBatch.values()) {
+                    // TODO: maybe send in bursts? like 5 copies at a time?
+                    // TODO: consider batching messages together
+                    message.send(socket);
+                    System.out.println("!! sent repeat");
+                }
             }
         }
     }
@@ -160,26 +156,21 @@ class ReceiveThread extends Thread {
 
 public class PerfectLink {
     private final int processId;
-    private final DatagramSocket socket;
 
     // *** sending ***
     private final SendThread sendThread;
     private int nextMessageId = 0;
-    // messages in the process of being sent
-    private final HashMap<Integer, SendingMessage> sending = new HashMap<>();
-    // messages that have been sent and successfully received
-    private final HashSet<Integer> removed = new HashSet<>();
 
     // *** receiving ***
     private final ReceiveThread receiveThread;
+    // TODO: replace with actual queue or stack
     private final ArrayList<Message> receivedQueue = new ArrayList<>();
     private final HashSet<MessageKey> receivedIds = new HashSet<>();
 
     public PerfectLink(int processId, DatagramSocket socket) {
         this.processId = processId;
-        this.socket = socket;
 
-        sendThread = new SendThread(socket, sending);
+        sendThread = new SendThread(socket);
 
         receiveThread = new ReceiveThread(
                 socket,
@@ -195,20 +186,7 @@ public class PerfectLink {
                     }
                 },
                 acknowledgement -> {
-                    if (!removed.contains(acknowledgement.messageId)) {
-                        synchronized (sending) {
-                            if (sending.remove(acknowledgement.messageId) != null) {
-                                removed.add(acknowledgement.messageId);
-                            } else {
-                                throw new IllegalStateException(
-                                        "sender for process "
-                                                + processId
-                                                + " received a remove command for a message that has never existed: "
-                                                + acknowledgement.messageId
-                                );
-                            }
-                        }
-                    }
+                    sendThread.remove(acknowledgement.messageId);
                 }
         );
 
@@ -221,11 +199,7 @@ public class PerfectLink {
 
         int messageId = nextMessageId++;
         Message message = Message.normalMessage(messageId, processId, msg, destination);
-        message.send(socket);
-        SendingMessage sendingMessage = new SendingMessage(message);
-        synchronized (sending) {
-            sending.put(messageId, sendingMessage);
-        }
+        sendThread.send(message);
     }
 
     // non-blocking, returns null if there is nothing to deliver at the moment
