@@ -106,9 +106,7 @@ public class Main {
             throw new Error(e);
         }
 
-        PerfectLinkSender plSender = new PerfectLinkSender(parser.myId(), socket);
-        PerfectLinkReceiver plReceiver = new PerfectLinkReceiver(parser.myId(), socket);
-
+        PerfectLink perfectLink = new PerfectLink(parser.myId(), socket);
 
         System.out.println("Broadcasting and delivering messages...\n");
 
@@ -116,30 +114,21 @@ public class Main {
 
         // send
         if (!isReceiver) {
-            plSender.start();
-
             for (int i = 0; i < numMessages; i++) {
-                plSender.send("message " + i + " from process " + parser.myId(), receiverFullAddress);
+                perfectLink.send("message " + i + " from process " + parser.myId(), receiverFullAddress);
                 eventHistory.logBroadcast(i);
-            }
-
-            plSender.interrupt();
-            try {
-                plSender.join();
-            } catch (InterruptedException ignored) {
             }
         }
 
         long start = System.nanoTime();
-        long expectedMsgs = 20_000;
+        long expectedMsgs = 50_000;
         long totalMsgs = 0;
 
         // receive (forever)
-        plReceiver.start();
         outer:
         while (true) {
             Message delivered;
-            while ((delivered = plReceiver.deliver()) != null) {
+            while ((delivered = perfectLink.deliver()) != null) {
                 System.out.println("DELIVER ID " + delivered.messageId + " FROM " + delivered.sourceId);
                 eventHistory.logDelivery(delivered.sourceId, delivered.messageId);
 
@@ -150,7 +139,7 @@ public class Main {
             }
 
             try {
-                Thread.sleep(50);
+                Thread.sleep(10);
             } catch (InterruptedException e) {
                 break;
             }
