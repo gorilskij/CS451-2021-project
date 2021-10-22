@@ -5,12 +5,39 @@ import java.net.*;
 import java.util.HashMap;
 import java.util.HashSet;
 
+class SendingMessage {
+    static final long TIMEOUT = 1_000_000_000L; // 1s
+
+    final Message message;
+    long lastSentNanoTime = 0;
+
+    SendingMessage(Message message) {
+        this.message = message;
+    }
+
+    /**
+     * @param nanoTime
+     * @param socket
+     * @return number of nanoseconds left to wait before this message
+     * can be sent again
+     */
+    long trySend(long nanoTime, DatagramSocket socket) {
+        if (nanoTime - lastSentNanoTime >= TIMEOUT) {
+            message.send(socket);
+            lastSentNanoTime = nanoTime;
+        }
+
+        // can't be negative
+        return TIMEOUT - (nanoTime - lastSentNanoTime);
+    }
+}
+
 public class PerfectLinkSender extends Thread {
     private final int processId;
 
     private final DatagramSocket socket;
     private int nextMessageId = 0;
-    private final HashMap<Integer, Message> sending = new HashMap<>();
+    private final HashMap<Integer, SendingMessage> sending = new HashMap<>();
     private final HashSet<Integer> removed = new HashSet<>();
 
     public PerfectLinkSender(int processId, DatagramSocket socket) {
@@ -23,8 +50,10 @@ public class PerfectLinkSender extends Thread {
 
         int messageId = nextMessageId++;
         Message message = Message.normalMessage(messageId, processId, msg, destination);
+        message.send(socket);
+        SendingMessage sendingMessage = new SendingMessage(message);
         synchronized (sending) {
-            sending.put(messageId, message);
+            sending.put(messageId, sendingMessage);
         }
     }
 
@@ -35,6 +64,8 @@ public class PerfectLinkSender extends Thread {
         // isInterrupted() will continue to return false, this
         // is why an extra mechanism is needed
         boolean interrupted = false;
+
+        long nextSendAttemptNanoTime = 0;
 
         while (true) {
             if (isInterrupted()) {
@@ -47,13 +78,17 @@ public class PerfectLinkSender extends Thread {
                     break;
                 }
 
-                // TODO: do this less often
-                for (Message message : sending.values()) {
-                    try {
-                        message.send(socket);
-                    } catch (IOException e) {
-                        throw new Error(e);
+                long nanoTime = System.nanoTime();
+                if (nanoTime >= nextSendAttemptNanoTime) {
+                    System.out.println("henlou");
+                    long minLeftToWait = SendingMessage.TIMEOUT;
+                    for (SendingMessage message : sending.values()) {
+                        long leftToWait = message.trySend(nanoTime, socket);
+                        if (leftToWait < minLeftToWait) {
+                            minLeftToWait = leftToWait;
+                        }
                     }
+                    nextSendAttemptNanoTime = nanoTime + minLeftToWait;
                 }
 
                 // TODO: set global max buf size
@@ -61,6 +96,7 @@ public class PerfectLinkSender extends Thread {
                 DatagramPacket packet = new DatagramPacket(buf, buf.length);
 
                 // receive all the acknowledgements currently available
+                int acksReceived = 0;
                 while (true) {
                     try {
                         socket.receive(packet);
@@ -73,6 +109,7 @@ public class PerfectLinkSender extends Thread {
                         if (!removed.contains(received.messageId)) {
                             if (sending.remove(received.messageId) != null) {
                                 removed.add(received.messageId);
+                                acksReceived += 1;
                             } else {
                                 throw new IllegalStateException("sender received a remove command for a message that has never existed: " + received.messageId);
                             }
@@ -83,12 +120,19 @@ public class PerfectLinkSender extends Thread {
                         throw new Error(e);
                     }
                 }
+
+                System.out.println("acks received: " + acksReceived);
             }
 
-            // TODO: put send timers on all the messages separately
-            //  or at least separate them from the ack listener timer
+            long sleepNanoTime = nextSendAttemptNanoTime - System.nanoTime();
+            if (sleepNanoTime < 0) {
+                continue;
+            } else if (sleepNanoTime > 10_000_000 /* 10ms */) {
+                sleepNanoTime = 10_000_000;
+            }
             try {
-                Thread.sleep(1000);
+                Thread.sleep(sleepNanoTime / 1_000_000);
+//                wait(sleepNanoTime / 1_000_000);
             } catch (InterruptedException e) {
                 interrupted = true;
                 // the actual interruption check is done on the next iteration

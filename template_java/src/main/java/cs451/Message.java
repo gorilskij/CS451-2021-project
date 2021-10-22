@@ -64,21 +64,21 @@ public class Message {
         return new Message(packet);
     }
 
-    public void send(DatagramSocket socket) throws IOException {
-//        System.out.println("Send \"" + data + "\" to " + address);
-
+    public void send(DatagramSocket socket) {
         DatagramPacket packet = new DatagramPacket(bytes, bytes.length, address.address, address.port);
-        socket.send(packet);
+        try {
+            socket.send(packet);
+        } catch (IOException ignore) {
+            // try again later, a message won't be considered
+            // sent until an acknowledgement is received so
+            // failure to send is not a problem
+        }
     }
 
     public void sendAcknowledgement(int sourceId, DatagramSocket socket) {
         if (messageType != NORMAL_MESSAGE) {
             throw new Error(new MessageTypeException(NORMAL_MESSAGE, messageType));
         }
-        try {
-            new Message(ACKNOWLEDGEMENT, messageId, sourceId, "", address).send(socket);
-        } catch (IOException ignored) {
-            /* ignore, acknowledgement is not critical */
-        }
+        new Message(ACKNOWLEDGEMENT, messageId, sourceId, "", address).send(socket);
     }
 }
