@@ -2,7 +2,6 @@ package cs451;
 
 import java.io.IOException;
 import java.net.*;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 
@@ -86,8 +85,10 @@ public class PerfectLinkSender extends Thread {
                 }
             }
 
+            // TODO: put send timers on all the messages separately
+            //  or at least separate them from the ack listener timer
             try {
-                Thread.sleep(100);
+                Thread.sleep(1000);
             } catch (InterruptedException e) {
                 interrupted = true;
                 // the actual interruption check is done on the next iteration

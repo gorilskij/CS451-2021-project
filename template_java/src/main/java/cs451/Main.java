@@ -72,8 +72,6 @@ public class Main {
         }
 
 
-
-
         // TODO: redo
         InetAddress receiverAddress = null;
         int receiverPort = -1;
@@ -114,8 +112,10 @@ public class Main {
 
         System.out.println("Broadcasting and delivering messages...\n");
 
+        boolean isReceiver = parser.myId() == receiverId;
+
         // send
-        if (parser.myId() != receiverId) {
+        if (!isReceiver) {
             plSender.start();
 
             for (int i = 0; i < numMessages; i++) {
@@ -130,14 +130,23 @@ public class Main {
             }
         }
 
+        long start = System.nanoTime();
+        long expectedMsgs = 20_000;
+        long totalMsgs = 0;
 
         // receive (forever)
         plReceiver.start();
+        outer:
         while (true) {
             Message delivered;
             while ((delivered = plReceiver.deliver()) != null) {
                 System.out.println("DELIVER ID " + delivered.messageId + " FROM " + delivered.sourceId);
                 eventHistory.logDelivery(delivered.sourceId, delivered.messageId);
+
+                totalMsgs += 1;
+                if (totalMsgs == expectedMsgs) {
+                    break outer;
+                }
             }
 
             try {
@@ -145,6 +154,13 @@ public class Main {
             } catch (InterruptedException e) {
                 break;
             }
+        }
+
+        long end = System.nanoTime();
+        if (isReceiver) {
+            System.out.println("total number of messages received: " + totalMsgs);
+            System.out.println("time taken: " + (end - start) / 1_000_000 + "ms");
+            System.out.println("messages/s: " + ((long) (totalMsgs * 1e9) / (end - start)));
         }
 
         // After a process finishes broadcasting,
