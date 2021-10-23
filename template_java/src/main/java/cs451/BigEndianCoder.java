@@ -11,6 +11,14 @@ public final class BigEndianCoder {
         };
     }
 
+    // encode directly into a large array
+    public static void encodeInt(int value, byte[] array, int startPosition) {
+        array[startPosition] = (byte) (value & 0xFF);
+        array[startPosition + 1] = (byte) ((value >>> 8) & 0xFF);
+        array[startPosition + 2] = (byte) ((value >>> 16) & 0xFF);
+        array[startPosition + 3] = (byte) ((value >>> 24) & 0xFF);
+    }
+
     // inverse operation of encodeInt
     public static int decodeInt(byte[] bytes) {
         assert bytes.length == 4 :

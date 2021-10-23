@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.net.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.HashMap;
+import java.util.Map;
 
 public class Main {
     private static final EventHistory eventHistory = new EventHistory();
@@ -124,15 +126,27 @@ public class Main {
         int expectedMsgs = (parser.hosts().size() - 1) * numMessages;
         int totalMsgs = 0;
 
+        HashMap<Integer, Integer> totals = new HashMap<>();
+
         // receive (forever)
         outer:
         while (true) {
             Message delivered;
-            while ((delivered = perfectLink.deliver()) != null) {
+            while ((delivered = perfectLink.tryDeliver()) != null) {
                 totalMsgs += 1;
 
-                System.out.println("DELIVER ID " + delivered.messageId + " FROM " + delivered.sourceId);
+                if (!totals.containsKey(delivered.sourceId)) {
+                    totals.put(delivered.sourceId, 0);
+                }
+                totals.put(delivered.sourceId, totals.get(delivered.sourceId) + 1);
+
+                System.out.println("DELIVER \"" + delivered.text + "\"");
                 System.out.println("  total: " + totalMsgs);
+
+                for (Map.Entry<Integer, Integer> entry : totals.entrySet()) {
+                    System.out.println(entry.getValue() + " from " + entry.getKey());
+                }
+
                 eventHistory.logDelivery(delivered.sourceId, delivered.messageId);
 
                 if (totalMsgs == expectedMsgs) {

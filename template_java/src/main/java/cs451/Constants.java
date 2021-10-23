@@ -17,4 +17,7 @@ public class Constants {
 
     // indexes for config
     public static final int CONFIG_VALUE = 6;
+
+    // maximum size of a packet in bytes including metadata
+    public static final int MAX_PACKET_SIZE = 255;
 }
