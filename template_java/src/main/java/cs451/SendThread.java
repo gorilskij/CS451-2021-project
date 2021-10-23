@@ -46,8 +46,8 @@ public class SendThread extends Thread {
 
     public void remove(int packetId) {
 //        System.out.println("call remove for " + packetId);
-        synchronized (sendingPackets) {
-            if (removed.add(packetId)) {
+        if (removed.add(packetId)) {
+            synchronized (sendingPackets) {
 //                System.out.println("SUCCESSFULLY REMOVE PACKET " + packetId);
                 DatagramPacket removedPacket = sendingPackets.remove(packetId);
                 if (removedPacket == null) {
@@ -96,10 +96,9 @@ public class SendThread extends Thread {
 
 //            System.out.println("henlou");
             synchronized (sendingPackets) {
-//                for (DatagramPacket packet : sendingPackets.values()) {
-                for (Map.Entry<Integer, DatagramPacket> entry : sendingPackets.entrySet()) {
+                for (DatagramPacket packet : sendingPackets.values()) {
 //                    int packetId = entry.getKey();
-                    DatagramPacket packet = entry.getValue();
+//                    DatagramPacket packet = entry.getValue();
 
                     try {
                         socket.send(packet);

@@ -95,7 +95,9 @@ public class ReceiveQueue {
             Message message = builder.tryBuild();
 
             if (message != null) {
-                delivered.add(message);
+                synchronized (delivered) {
+                    delivered.add(message);
+                }
                 builders.remove(key);
 
 //                if (builders.isEmpty()) {
@@ -108,8 +110,10 @@ public class ReceiveQueue {
     }
 
     public Message tryDeliver() {
-        if (delivered.size() > 0) {
-            return delivered.remove(0);
+        synchronized (delivered) {
+            if (delivered.size() > 0) {
+                return delivered.remove(0);
+            }
         }
         return null;
     }

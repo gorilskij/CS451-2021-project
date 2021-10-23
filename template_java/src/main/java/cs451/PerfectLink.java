@@ -68,9 +68,7 @@ public class PerfectLink {
                     PacketKey key = new PacketKey(packetId, sourceId);
                     if (!receivedIds.contains(key)) {
                         receivedIds.add(key);
-                        synchronized (receiveQueue) {
-                            receiveQueue.add(normalPacket);
-                        }
+                        receiveQueue.add(normalPacket);
                     }
 
                     Packet acknowledgement = new Packet(packetId, packetData).acknowledgement(sourceId);
@@ -92,19 +90,20 @@ public class PerfectLink {
         int messageId = nextMessageId++;
 
         synchronized (sendQueues) {
+            SendQueue queue;
             if (!sendQueues.containsKey(destination)) {
-                sendQueues.put(destination, new SendQueue(destination, processId, sendThread));
+                queue = new SendQueue(destination, processId, sendThread);
+                sendQueues.put(destination, queue);
+            } else {
+                queue = sendQueues.get(destination);
             }
-
-            sendQueues.get(destination).send(messageId, msg);
+            queue.send(messageId, msg);
         }
     }
 
     // non-blocking, returns null if there is nothing to deliver at the moment
     public Message tryDeliver() {
-        synchronized (receiveQueue) {
-            return receiveQueue.tryDeliver();
-        }
+        return receiveQueue.tryDeliver();
     }
 
     public void close() {
