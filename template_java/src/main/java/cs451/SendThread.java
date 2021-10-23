@@ -101,8 +101,6 @@ public class SendThread extends Thread {
 //                    int packetId = entry.getKey();
                     DatagramPacket packet = entry.getValue();
 
-                    // TODO: maybe send in bursts? like 5 copies at a time?
-                    // TODO: consider batching messages together
                     try {
                         socket.send(packet);
 //                        System.out.println("send packet " + packetId);
@@ -114,4 +112,3 @@ public class SendThread extends Thread {
         }
     }
 }
-
