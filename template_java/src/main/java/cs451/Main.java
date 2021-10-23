@@ -126,7 +126,7 @@ public class Main {
         int expectedMsgs = (parser.hosts().size() - 1) * numMessages;
         int totalMsgs = 0;
 
-        HashMap<Integer, Integer> totals = new HashMap<>();
+//        HashMap<Integer, Integer> totals = new HashMap<>();
 
         // receive (forever)
         outer:
@@ -135,17 +135,17 @@ public class Main {
             while ((delivered = perfectLink.tryDeliver()) != null) {
                 totalMsgs += 1;
 
-                if (!totals.containsKey(delivered.sourceId)) {
-                    totals.put(delivered.sourceId, 0);
-                }
-                totals.put(delivered.sourceId, totals.get(delivered.sourceId) + 1);
+//                if (!totals.containsKey(delivered.sourceId)) {
+//                    totals.put(delivered.sourceId, 0);
+//                }
+//                totals.put(delivered.sourceId, totals.get(delivered.sourceId) + 1);
 
                 System.out.println("DELIVER \"" + delivered.text + "\"");
                 System.out.println("  total: " + totalMsgs);
 
-                for (Map.Entry<Integer, Integer> entry : totals.entrySet()) {
-                    System.out.println(entry.getValue() + " from " + entry.getKey());
-                }
+//                for (Map.Entry<Integer, Integer> entry : totals.entrySet()) {
+//                    System.out.println(entry.getValue() + " from " + entry.getKey());
+//                }
 
                 eventHistory.logDelivery(delivered.sourceId, delivered.messageId);
 
