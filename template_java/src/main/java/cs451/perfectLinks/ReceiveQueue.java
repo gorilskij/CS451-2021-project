@@ -1,4 +1,7 @@
-package cs451;
+package cs451.perfectLinks;
+
+import cs451.BigEndianCoder;
+import cs451.Message;
 
 import java.net.DatagramPacket;
 import java.util.ArrayList;
@@ -45,25 +48,21 @@ public class ReceiveQueue {
 
             MessageKey key = new MessageKey(fragment.messageId, sourceId);
 
+            MessageBuilder builder;
             if (!builders.containsKey(key)) {
-                builders.put(key, new MessageBuilder(sourceId));
+                builder = new MessageBuilder(fragment.messageId, sourceId);
+                builders.put(key, builder);
+            } else {
+                builder = builders.get(key);
             }
-
-            MessageBuilder builder = builders.get(key);
             builder.add(fragment);
-            Message message = builder.tryBuild();
 
+            Message message = builder.tryBuild();
             if (message != null) {
                 synchronized (delivered) {
                     delivered.add(message);
                 }
                 builders.remove(key);
-
-//                if (builders.isEmpty()) {
-//                    System.out.println("BUILDERS EMPTY");
-//                } else {
-//                    System.out.println(builders.size() + "BUILDERS REMAINING");
-//                }
             }
         }
     }

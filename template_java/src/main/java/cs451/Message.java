@@ -5,7 +5,7 @@ public class Message {
     public final String text;
     public final int sourceId;
 
-    Message(int messageId, String text, int sourceId) {
+    public Message(int messageId, String text, int sourceId) {
         this.messageId = messageId;
         this.text = text;
         this.sourceId = sourceId;

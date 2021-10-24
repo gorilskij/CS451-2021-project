@@ -1,11 +1,13 @@
-package cs451;
+package cs451.perfectLinks;
+
+import cs451.BigEndianCoder;
+import cs451.FullAddress;
+import cs451.Message;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
-import java.net.SocketTimeoutException;
 import java.util.*;
-import java.util.function.Consumer;
 
 // just a tuple class to uniquely identify each message (message id, sender id)
 class PacketKey {

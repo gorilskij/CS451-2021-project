@@ -1,4 +1,6 @@
-package cs451;
+package cs451.perfectLinks;
+
+import cs451.BigEndianCoder;
 
 public class MessageFragment {
     static final int METADATA_LENGTH = 13;

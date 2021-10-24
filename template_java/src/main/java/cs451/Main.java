@@ -1,11 +1,11 @@
 package cs451;
 
+import cs451.perfectLinks.PerfectLink;
+
 import java.io.IOException;
 import java.net.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.HashMap;
-import java.util.Map;
 
 public class Main {
     private static final EventHistory eventHistory = new EventHistory();

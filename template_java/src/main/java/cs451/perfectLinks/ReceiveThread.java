@@ -1,4 +1,7 @@
-package cs451;
+package cs451.perfectLinks;
+
+import cs451.BigEndianCoder;
+import cs451.Constants;
 
 import java.io.IOException;
 import java.net.DatagramPacket;

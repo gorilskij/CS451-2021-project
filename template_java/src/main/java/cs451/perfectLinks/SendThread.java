@@ -1,4 +1,4 @@
-package cs451;
+package cs451.perfectLinks;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -45,10 +45,8 @@ public class SendThread extends Thread {
     }
 
     public void remove(int packetId) {
-//        System.out.println("call remove for " + packetId);
         if (removed.add(packetId)) {
             synchronized (sendingPackets) {
-//                System.out.println("SUCCESSFULLY REMOVE PACKET " + packetId);
                 DatagramPacket removedPacket = sendingPackets.remove(packetId);
                 if (removedPacket == null) {
                     throw new IllegalStateException(
@@ -63,7 +61,6 @@ public class SendThread extends Thread {
                         DatagramPacket newPacket = waitingPackets.remove(firstKey.get());
                         try {
                             socket.send(newPacket);
-//                            System.out.println("sent packet " + firstKey.get() + " due to ack received for " + packetId);
                         } catch (IOException ignored) {
                         }
                         sendingPackets.put(firstKey.get(), newPacket);

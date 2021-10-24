@@ -1,4 +1,8 @@
-package cs451;
+package cs451.perfectLinks;
+
+import cs451.BigEndianCoder;
+import cs451.Constants;
+import cs451.FullAddress;
 
 import java.net.DatagramPacket;
 import java.util.ArrayList;

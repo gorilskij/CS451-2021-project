@@ -1,4 +1,6 @@
-package cs451;
+package cs451.perfectLinks;
+
+import cs451.BigEndianCoder;
 
 // a packetId of 0 indicates an acknowledgement
 // in that case, the first 4 bytes are the packetId

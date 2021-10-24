@@ -1,4 +1,6 @@
-package cs451;
+package cs451.perfectLinks;
+
+import cs451.Message;
 
 import java.util.HashMap;
 
@@ -6,19 +8,16 @@ import java.util.HashMap;
 public class MessageBuilder {
     int expectedFragments = -1;
     private final HashMap<Integer, MessageFragment> fragments = new HashMap<>();
+
+    private final int messageId;
     private final int sourceId;
 
-    int messageId = -1;
-
-    MessageBuilder(int sourceId) {
+    MessageBuilder(int messageId, int sourceId) {
+        this.messageId = messageId;
         this.sourceId = sourceId;
     }
 
     public void add(MessageFragment fragment) {
-        if (messageId < 0) {
-            messageId = fragment.messageId;
-        }
-
         fragments.put(fragment.fragmentIdx, fragment);
 
         if (fragment.isLast) {
