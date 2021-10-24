@@ -1,28 +1,30 @@
 package cs451.perfectLinks;
 
-import cs451.BigEndianCoder;
-import cs451.Message;
-import cs451.Pair;
+import cs451.base.BigEndianCoder;
+import cs451.base.Message;
+import cs451.base.Pair;
 
 import java.net.DatagramPacket;
+import java.util.Arrays;
 import java.util.HashMap;
-import java.util.Objects;
+import java.util.HashSet;
 import java.util.function.Consumer;
 
-public class ReceiveQueue {
-//    private final ArrayList<Message> delivered = new ArrayList<>();
+/**
+ * Reconstructs messages from fragments as they arrive, fragments can arrive in any order, any
+ * number of times, when a message is ready, it's passed to `deliverCallback`
+ */
+public class Reconstructor {
     private final Consumer<Message> deliverCallback;
     // indexed by (messageId, sourceId)
     private final HashMap<Pair<Integer, Integer>, MessageBuilder> builders = new HashMap<>();
+    // contains (messageId, sourceId)
 
-    public ReceiveQueue(Consumer<Message> deliverCallback) {
+    public Reconstructor(Consumer<Message> deliverCallback) {
         this.deliverCallback = deliverCallback;
     }
 
-    public void add(DatagramPacket packet) {
-        byte[] packetData = packet.getData();
-        int packetLength = packet.getLength();
-
+    public void add(byte[] packetData, int packetLength) {
         int sourceId = BigEndianCoder.decodeInt(packetData, 4);
 
         // skip packet metadata
@@ -43,9 +45,7 @@ public class ReceiveQueue {
 
             Message message = builder.tryBuild();
             if (message != null) {
-                synchronized (deliverCallback) {
-                    deliverCallback.accept(message);
-                }
+                deliverCallback.accept(message);
                 builders.remove(key);
             }
         }

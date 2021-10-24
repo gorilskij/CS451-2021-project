@@ -1,11 +1,10 @@
 package cs451.perfectLinks;
 
-import cs451.Pair;
+import cs451.base.Pair;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;

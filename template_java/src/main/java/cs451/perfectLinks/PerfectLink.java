@@ -1,62 +1,38 @@
 package cs451.perfectLinks;
 
-import cs451.BigEndianCoder;
-import cs451.FullAddress;
-import cs451.Message;
+import cs451.base.BigEndianCoder;
+import cs451.base.FullAddress;
+import cs451.base.Message;
+import cs451.base.Pair;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
-
-// just a tuple class to uniquely identify each message (message id, sender id)
-class PacketKey {
-    public final int packetId;
-    public final int sourceId;
-
-    PacketKey(int packetId, int sourceId) {
-        this.packetId = packetId;
-        this.sourceId = sourceId;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        PacketKey that = (PacketKey) o;
-        return packetId == that.packetId && sourceId == that.sourceId;
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(packetId, sourceId);
-    }
-}
 
 public class PerfectLink {
     private final int processId;
 
     // *** sending ***
-    private final HashMap<FullAddress, SendQueue> sendQueues = new HashMap<>();
+    private final ConcurrentHashMap<FullAddress, SendQueue> sendQueues = new ConcurrentHashMap<>();
     private final SendThread sendThread;
     private int nextMessageId = 0;
 
     // *** receiving ***
     private final ReceiveThread receiveThread;
-    // TODO: replace with actual queue or stack
-    private final ReceiveQueue receiveQueue;
-    private final HashSet<PacketKey> receivedIds = new HashSet<>();
+    private final Reconstructor reconstructor;
+    // contains (packetId, sourceId)
+    private final HashSet<Pair<Integer, Integer>> receivedIds = new HashSet<>(); // TODO: garbage collect
 
     public PerfectLink(int processId, DatagramSocket socket, Consumer<Message> deliverCallback) {
         this.processId = processId;
-        this.receiveQueue = new ReceiveQueue(deliverCallback);
+        this.reconstructor = new Reconstructor(deliverCallback);
 
         sendThread = new SendThread(socket, () -> {
-            synchronized (sendQueues) {
-                for (SendQueue queue : sendQueues.values()) {
-                    queue.awaken();
-                }
+            for (SendQueue queue : sendQueues.values()) {
+                queue.awaken();
             }
         });
 
@@ -67,17 +43,20 @@ public class PerfectLink {
                     int packetId = BigEndianCoder.decodeInt(packetData, 0);
                     int sourceId = BigEndianCoder.decodeInt(packetData, 4);
 
-//                    System.out.println("> packet id " + packetId + " from " + sourceId);
-
-                    PacketKey key = new PacketKey(packetId, sourceId);
-                    if (!receivedIds.contains(key)) {
-                        receivedIds.add(key);
-                        receiveQueue.add(normalPacket);
+                    Pair<Integer, Integer> key = new Pair<>(packetId, sourceId);
+                    if (receivedIds.add(key)) {
+                        reconstructor.add(packetData, normalPacket.getLength());
                     }
 
-                    Packet acknowledgement = new Packet(packetId, packetData).acknowledgement(sourceId);
+                    // send acknowledgement
                     try {
-                        socket.send(new DatagramPacket(acknowledgement.data, acknowledgement.data.length, normalPacket.getAddress(), normalPacket.getPort()));
+                        Packet acknowledgement = new Packet(packetId, packetData).acknowledgement(sourceId);
+                        socket.send(new DatagramPacket(
+                                acknowledgement.data,
+                                acknowledgement.data.length,
+                                normalPacket.getAddress(),
+                                normalPacket.getPort()
+                        ));
                     } catch (IOException ignored) {
                     }
                 },
@@ -89,20 +68,10 @@ public class PerfectLink {
     }
 
     public void send(String msg, FullAddress destination) {
-//        System.out.println("Enqueue \"" + msg + "\" to " + destination);
-
         int messageId = nextMessageId++;
-
-        synchronized (sendQueues) {
-            SendQueue queue;
-            if (!sendQueues.containsKey(destination)) {
-                queue = new SendQueue(destination, processId, sendThread);
-                sendQueues.put(destination, queue);
-            } else {
-                queue = sendQueues.get(destination);
-            }
-            queue.send(messageId, msg);
-        }
+        sendQueues
+                .computeIfAbsent(destination, ignored -> new SendQueue(destination, processId, sendThread))
+                .send(messageId, msg);
     }
 
     public void close() {

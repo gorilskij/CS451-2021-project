@@ -1,4 +1,4 @@
-package cs451;
+package cs451.base;
 
 public class Message {
     public final int messageId;

@@ -1,4 +1,4 @@
-package cs451;
+package cs451.base;
 
 import java.util.Objects;
 
@@ -16,7 +16,7 @@ public class Pair<T, U> {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Pair<T, U> that = (Pair<T, U>) o;
-        return first == that.first && second == that.second;
+        return first.equals(that.first) && second.equals(that.second);
     }
 
     @Override

@@ -1,4 +1,4 @@
-package cs451;
+package cs451.base;
 
 import java.net.InetAddress;
 import java.util.Objects;

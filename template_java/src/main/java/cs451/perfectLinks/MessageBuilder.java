@@ -1,7 +1,6 @@
 package cs451.perfectLinks;
 
-import cs451.Message;
-
+import cs451.base.Message;
 import java.util.HashMap;
 
 // recombines a message from message fragments

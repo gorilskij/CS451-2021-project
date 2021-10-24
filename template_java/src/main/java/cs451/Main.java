@@ -1,5 +1,6 @@
 package cs451;
 
+import cs451.base.FullAddress;
 import cs451.perfectLinks.PerfectLink;
 
 import java.io.IOException;
@@ -84,8 +85,7 @@ public class Main {
             throw new Error(e);
         }
 
-
-        // TODO: redo
+        // find out who the receiver is
         InetAddress receiverAddress = null;
         int receiverPort = -1;
         int myPort = -1;
@@ -103,14 +103,14 @@ public class Main {
                 myPort = host.getPort();
             }
 
-            // TODO: improve this find thing
             if (receiverPort > -1 && myPort > -1) {
                 break;
             }
         }
+        boolean isReceiver = parser.myId() == receiverId;
+
 
         FullAddress receiverFullAddress = new FullAddress(receiverAddress, receiverPort);
-
         DatagramSocket socket;
         try {
             socket = new DatagramSocket(myPort);
@@ -120,37 +120,31 @@ public class Main {
         }
 
 
-//        // TODO: remove
-//        try {
-//            Thread.sleep(10000);
-//        } catch (InterruptedException ignored) {
-//        }
-
-
         System.out.println("Broadcasting and delivering messages...\n");
 
-        boolean isReceiver = parser.myId() == receiverId;
-
-
         long start = System.nanoTime();
-        int expectedMsgs = (parser.hosts().size() - 1) * numMessages;
+        // for debug
+        int expectedMessages = (parser.hosts().size() - 1) * numMessages;
+        System.out.println("expecting " + expectedMessages + " messages");
         int[] totalMsgs = {0};
 
         PerfectLink perfectLink = new PerfectLink(parser.myId(), socket, delivered -> {
-            totalMsgs[0] += 1;
-
-//            System.out.println("DELIVER \"" + delivered.text + "\"");
-//            System.out.println("  total: " + totalMsgs[0]);
 
             eventHistory.logDelivery(delivered.sourceId, delivered.messageId);
 
-            if (totalMsgs[0] == expectedMsgs) {
+            // for debug
+            totalMsgs[0] += 1;
+            if (totalMsgs[0] == expectedMessages) {
                 long end = System.nanoTime();
                 if (isReceiver) {
                     System.out.println("total number of messages received: " + totalMsgs[0]);
                     System.out.println("time taken: " + (end - start) / 1_000_000 + "ms");
                     System.out.println("messages/s: " + ((long) (totalMsgs[0] * 1e9) / (end - start)));
                 }
+            }
+            if (totalMsgs[0] > expectedMessages) {
+                System.out.println("ok, this is not funny anymore");
+                System.exit(1);
             }
         });
 

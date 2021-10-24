@@ -1,10 +1,11 @@
 package cs451.perfectLinks;
 
-import cs451.BigEndianCoder;
+import cs451.base.BigEndianCoder;
 import cs451.Constants;
-import cs451.FullAddress;
+import cs451.base.FullAddress;
 
 import java.net.DatagramPacket;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 
 public class SendQueue {
@@ -13,7 +14,7 @@ public class SendQueue {
     private final SendThread sendThread;
 
     // TODO: have a running counter of the total length of the fragments in the queue
-    private final ArrayList<MessageFragment> queue = new ArrayList<>();
+    private final ArrayDeque<MessageFragment> queue = new ArrayDeque<>();
     private int totalQueueSize = 0;
 
     private int nextPacketId = 1;
@@ -50,7 +51,7 @@ public class SendQueue {
 
     // makes a packet even if it would be underfilled
     // only returns null if there are no fragments at all
-    public Packet forceMakePacket() {
+    public synchronized Packet forceMakePacket() {
         if (queue.isEmpty()) {
             return null;
         }
@@ -63,15 +64,15 @@ public class SendQueue {
                 break;
             }
 
-            if (queue.get(0).size() <= spaceRemaining) {
-                MessageFragment fragment = queue.remove(0);
+            if (queue.peek().size() <= spaceRemaining) {
+                MessageFragment fragment = queue.poll();
                 totalLength += fragment.size();
                 fragments.add(fragment);
             } else {
-                MessageFragment[] halves = queue.get(0).split(spaceRemaining);
+                MessageFragment[] halves = queue.poll().split(spaceRemaining);
                 totalLength += halves[0].size();
                 fragments.add(halves[0]);
-                queue.set(0, halves[1]);
+                queue.offerFirst(halves[1]);
             }
         } while (!queue.isEmpty());
 

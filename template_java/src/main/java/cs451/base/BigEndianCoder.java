@@ -1,4 +1,4 @@
-package cs451;
+package cs451.base;
 
 public final class BigEndianCoder {
     // returns a byte array of length 4
