@@ -30,6 +30,18 @@ public class Main {
     }
 
     public static void main(String[] args) throws InterruptedException {
+
+        // TODO: remove
+        if (args.length == 0) {
+            int id = 2;
+            args = new String[] {
+                    "--id", "" + id,
+                    "--hosts", "/Users/Gorilskij/Desktop/EPFL/Courses/DA/CS451-2021-project/template_java/hosts",
+                    "--output", id + ".output",
+                    "/Users/Gorilskij/Desktop/EPFL/Courses/DA/CS451-2021-project/template_java/perfect-links.config"
+            };
+        }
+
         Parser parser = new Parser(args);
         parser.parse();
 
@@ -107,11 +119,40 @@ public class Main {
             throw new Error(e);
         }
 
-        PerfectLink perfectLink = new PerfectLink(parser.myId(), socket);
+
+//        // TODO: remove
+//        try {
+//            Thread.sleep(10000);
+//        } catch (InterruptedException ignored) {
+//        }
+
 
         System.out.println("Broadcasting and delivering messages...\n");
 
         boolean isReceiver = parser.myId() == receiverId;
+
+
+        long start = System.nanoTime();
+        int expectedMsgs = (parser.hosts().size() - 1) * numMessages;
+        int[] totalMsgs = {0};
+
+        PerfectLink perfectLink = new PerfectLink(parser.myId(), socket, delivered -> {
+            totalMsgs[0] += 1;
+
+//            System.out.println("DELIVER \"" + delivered.text + "\"");
+//            System.out.println("  total: " + totalMsgs[0]);
+
+            eventHistory.logDelivery(delivered.sourceId, delivered.messageId);
+
+            if (totalMsgs[0] == expectedMsgs) {
+                long end = System.nanoTime();
+                if (isReceiver) {
+                    System.out.println("total number of messages received: " + totalMsgs[0]);
+                    System.out.println("time taken: " + (end - start) / 1_000_000 + "ms");
+                    System.out.println("messages/s: " + ((long) (totalMsgs[0] * 1e9) / (end - start)));
+                }
+            }
+        });
 
         // send
         if (!isReceiver) {
@@ -119,46 +160,6 @@ public class Main {
                 perfectLink.send("message " + i + " from process " + parser.myId(), receiverFullAddress);
                 eventHistory.logBroadcast(i);
             }
-        }
-
-        long start = System.nanoTime();
-        int expectedMsgs = (parser.hosts().size() - 1) * numMessages;
-        int totalMsgs = 0;
-
-//        HashMap<Integer, Integer> totals = new HashMap<>();
-
-        // receive (forever)
-        outer:
-        while (true) {
-            Message delivered;
-            while ((delivered = perfectLink.tryDeliver()) != null) {
-                totalMsgs += 1;
-
-//                if (!totals.containsKey(delivered.sourceId)) {
-//                    totals.put(delivered.sourceId, 0);
-//                }
-//                totals.put(delivered.sourceId, totals.get(delivered.sourceId) + 1);
-
-                System.out.println("DELIVER \"" + delivered.text + "\"");
-                System.out.println("  total: " + totalMsgs);
-
-//                for (Map.Entry<Integer, Integer> entry : totals.entrySet()) {
-//                    System.out.println(entry.getValue() + " from " + entry.getKey());
-//                }
-
-                eventHistory.logDelivery(delivered.sourceId, delivered.messageId);
-
-                if (totalMsgs == expectedMsgs) {
-                    break outer;
-                }
-            }
-        }
-
-        long end = System.nanoTime();
-        if (isReceiver) {
-            System.out.println("total number of messages received: " + totalMsgs);
-            System.out.println("time taken: " + (end - start) / 1_000_000 + "ms");
-            System.out.println("messages/s: " + ((long) (totalMsgs * 1e9) / (end - start)));
         }
 
         // After a process finishes broadcasting,

@@ -25,8 +25,6 @@ public class SendQueue {
     }
 
     public void send(int messageId, String text) {
-//        System.out.println("SQ.send");
-
         MessageFragment fragment = new MessageFragment(messageId, text);
         queue.add(fragment);
         totalQueueSize += fragment.size();
@@ -36,22 +34,14 @@ public class SendQueue {
             DatagramPacket packet = new DatagramPacket(maybePacket.data, maybePacket.data.length, destination.address, destination.port);
             sendThread.send(maybePacket.packetId, packet);
         }
-
-//            if (queue.isEmpty()) {
-//                System.out.println("SEND QUEUE EMPTY FOR " + sourceId);
-//            }
     }
 
     private void flush() {
-        System.out.println("SQ.flush");
-
         Packet maybePacket;
         while ((maybePacket = forceMakePacket()) != null) {
             DatagramPacket packet = new DatagramPacket(maybePacket.data, maybePacket.data.length, destination.address, destination.port);
             sendThread.send(maybePacket.packetId, packet);
         }
-
-//        System.out.println("SEND QUEUE EMPTY FOR " + sourceId);
     }
 
     public void awaken() {

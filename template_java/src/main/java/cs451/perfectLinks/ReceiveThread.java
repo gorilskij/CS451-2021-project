@@ -37,13 +37,9 @@ public class ReceiveThread extends Thread {
 
             int packetId = BigEndianCoder.decodeInt(buffer, 0);
             if (packetId == 0) {
-                // acknowledgement
                 int acknowledgedPacketId = BigEndianCoder.decodeInt(buffer, 8);
-//                System.out.println("ACK PACKET ARRIVED");
                 acknowledgementCallback.accept(acknowledgedPacketId);
             } else {
-                // normal packet
-//                System.out.println("NORMAL PACKET ARRIVED");
                 normalPacketCallback.accept(packet);
             }
         }

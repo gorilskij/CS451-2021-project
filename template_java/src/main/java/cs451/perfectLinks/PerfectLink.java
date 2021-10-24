@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.util.*;
+import java.util.function.Consumer;
 
 // just a tuple class to uniquely identify each message (message id, sender id)
 class PacketKey {
@@ -44,11 +45,12 @@ public class PerfectLink {
     // *** receiving ***
     private final ReceiveThread receiveThread;
     // TODO: replace with actual queue or stack
-    private final ReceiveQueue receiveQueue = new ReceiveQueue();
+    private final ReceiveQueue receiveQueue;
     private final HashSet<PacketKey> receivedIds = new HashSet<>();
 
-    public PerfectLink(int processId, DatagramSocket socket) {
+    public PerfectLink(int processId, DatagramSocket socket, Consumer<Message> deliverCallback) {
         this.processId = processId;
+        this.receiveQueue = new ReceiveQueue(deliverCallback);
 
         sendThread = new SendThread(socket, () -> {
             synchronized (sendQueues) {
@@ -87,7 +89,7 @@ public class PerfectLink {
     }
 
     public void send(String msg, FullAddress destination) {
-        System.out.println("Enqueue \"" + msg + "\" to " + destination);
+//        System.out.println("Enqueue \"" + msg + "\" to " + destination);
 
         int messageId = nextMessageId++;
 
@@ -101,11 +103,6 @@ public class PerfectLink {
             }
             queue.send(messageId, msg);
         }
-    }
-
-    // non-blocking, returns null if there is nothing to deliver at the moment
-    public Message tryDeliver() {
-        return receiveQueue.tryDeliver();
     }
 
     public void close() {

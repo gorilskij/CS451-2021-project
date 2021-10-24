@@ -1,20 +1,23 @@
 package cs451.perfectLinks;
 
+import cs451.Pair;
+
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map;
-import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class SendThread extends Thread {
     private final int SENDING_BATCH_SIZE = 100;
 
     private final DatagramSocket socket;
 
-    private final HashMap<Integer, DatagramPacket> waitingPackets = new HashMap<>();
-    private final HashMap<Integer, DatagramPacket> sendingPackets = new HashMap<>();
+    // contains (packetId, packet)
+    private final ConcurrentLinkedQueue<Pair<Integer, DatagramPacket>> waitingPackets = new ConcurrentLinkedQueue<>();
+    private final ConcurrentHashMap<Integer, DatagramPacket> sendingPackets = new ConcurrentHashMap<>(SENDING_BATCH_SIZE);
     // ids of packets that have been sent and successfully received
     private final HashSet<Integer> removed = new HashSet<>();
 
@@ -26,46 +29,34 @@ public class SendThread extends Thread {
     }
 
     public void send(int packetId, DatagramPacket packet) {
-        System.out.println("ST.send");
-        synchronized (sendingPackets) {
-            if (sendingPackets.size() < SENDING_BATCH_SIZE) {
-                try {
-                    socket.send(packet);
-                } catch (IOException ignore) {
-                }
-                sendingPackets.put(packetId, packet);
-                System.out.println("> sendingPackets");
-            } else {
-                synchronized (waitingPackets) {
-                    waitingPackets.put(packetId, packet);
-                }
-                System.out.println("> waitingPackets");
+        if (sendingPackets.size() < SENDING_BATCH_SIZE) {
+            try {
+                socket.send(packet);
+            } catch (IOException ignore) {
             }
+            sendingPackets.put(packetId, packet);
+        } else {
+            waitingPackets.offer(new Pair<>(packetId, packet));
         }
     }
 
     public void remove(int packetId) {
         if (removed.add(packetId)) {
-            synchronized (sendingPackets) {
-                DatagramPacket removedPacket = sendingPackets.remove(packetId);
-                if (removedPacket == null) {
-                    throw new IllegalStateException(
-                            "sender received a remove command for a message that has never existed: " + packetId
-                    );
-                }
+            DatagramPacket removedPacket = sendingPackets.remove(packetId);
+            if (removedPacket == null) {
+                throw new IllegalStateException(
+                        "sender received a remove command for a message that has never existed: " + packetId
+                );
+            }
 
-                // add a message from allMessages to sendingBatch and send it in the process
-                synchronized (waitingPackets) {
-                    Optional<Integer> firstKey = waitingPackets.keySet().stream().findFirst();
-                    if (firstKey.isPresent()) {
-                        DatagramPacket newPacket = waitingPackets.remove(firstKey.get());
-                        try {
-                            socket.send(newPacket);
-                        } catch (IOException ignored) {
-                        }
-                        sendingPackets.put(firstKey.get(), newPacket);
-                    }
+            // add a message from allMessages to sendingBatch and send it in the process
+            Pair<Integer, DatagramPacket> pair = waitingPackets.poll();
+            if (pair != null) {
+                try {
+                    socket.send(pair.second);
+                } catch (IOException ignored) {
                 }
+                sendingPackets.put(pair.first, pair.second);
             }
         }
     }
@@ -82,27 +73,15 @@ public class SendThread extends Thread {
             awakenSenders.run();
 
             if (isInterrupted()) {
-                synchronized (waitingPackets) {
-                    synchronized (sendingPackets) {
-                        if (waitingPackets.isEmpty() && sendingPackets.isEmpty()) {
-                            break;
-                        }
-                    }
+                if (waitingPackets.isEmpty() && sendingPackets.isEmpty()) {
+                    break;
                 }
             }
 
-//            System.out.println("henlou");
-            synchronized (sendingPackets) {
-                for (DatagramPacket packet : sendingPackets.values()) {
-//                    int packetId = entry.getKey();
-//                    DatagramPacket packet = entry.getValue();
-
-                    try {
-                        socket.send(packet);
-//                        System.out.println("send packet " + packetId);
-                    } catch (IOException ignored) {
-                    }
-//                    System.out.println("!! sent repeat");
+            for (DatagramPacket packet : sendingPackets.values()) {
+                try {
+                    socket.send(packet);
+                } catch (IOException ignored) {
                 }
             }
         }
