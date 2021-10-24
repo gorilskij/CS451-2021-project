@@ -232,6 +232,8 @@ We say that a process `x` is affected by a process `z` if all the messages which
 # Type Ctrl-C in every terminal window to create the output files.
 ```
 
+Note: Refer to the project slides on how to use the `stress.py` tool to easily run your project.
+
 ## Limits
 The entire project implements abstractions that operate in the asynchronous model, i.e., there is no bound in processing and communication delays. However, during the evaluation of the projects we set a maximum execution time limit.
 In particular, for executions where:
@@ -298,3 +300,7 @@ However, we provide a sample validation script for the FIFO broacast (`tools/val
 **9. Is ok that the processes terminate before they are able to deliver all the messages?**
 
 Yes, as soon as you receive a SIGTERM signal, you need to terminate the process and start writing to the logs. You may not have delivered all the messages by that time which is ok. You should only deliver the message that you can deliver. i.e., that does not violate FIFO and URB. If instead you do, while you are not allowed to, you may be violating correctness.
+
+**10. Which files can I modify in the template?**
+
+In general, you can add whatever you want to ANY file in the template that is NOT marked with DO NOT EDIT. Also, you are NOT allowed to change the function signatures nor the file names. Other than that (like including adding a parser, adding some code in the main, create new classes, adding new functions, adding constants, ...etc.) is allowed.
