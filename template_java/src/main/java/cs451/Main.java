@@ -165,13 +165,13 @@ public class Main {
             totalMessages[0] += 1;
             if (totalMessages[0] >= expectedMessages) {
 //                System.out.println("DELIVER: \"" + message + "\"");
-                System.out.println("    total: " + totalMessages[0]);
 
                 if (totalMessages[0] > expectedMessages) {
                     System.out.println("ERROR: DELIVERED MORE MESSAGES THAN EXPECTED");
                     System.exit(1);
                 }
             }
+            System.out.println("    total: " + totalMessages[0]);
         });
 
         for (int i = 0; i < numMessages; i++) {

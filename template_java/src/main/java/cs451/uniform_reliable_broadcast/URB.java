@@ -28,14 +28,14 @@ class ReceivedMessage {
 // by PerfectLink)
 public class URB {
     private final int HEADER_SIZE = 8; // bytes
+    private final int SEND_BATCH_SIZE = 100;
 
     private final int processId;
     private final int totalNumProcesses;
-//    private final ArrayList<Pair<FullAddress, PerfectLink>> perfectLinks = new ArrayList<>();
     private final FullAddress[] otherAddresses;
     private final PerfectLink perfectLink;
-//    private final ArrayList<ReceivedMessage> received = new ArrayList<>();
-    // (urbMessageId, urbSourceId): processes that sent an ack
+    private final Deque<String> waiting = new ArrayDeque<>();
+    // (urbMessageId, urbSourceId): processes that acknowledge
     private final Map<Pair<Integer, Integer>, ReceivedMessage> received = new ConcurrentHashMap<>();
     // (urbMessageId, urbSourceId)
     private final Set<Pair<Integer, Integer>> delivered = Collections.newSetFromMap(new ConcurrentHashMap<>());
@@ -85,6 +85,10 @@ public class URB {
                 receivedMessage.acknowledged.add(message.sourceId);
                 if (receivedMessage.acknowledged.size() >= totalNumProcesses / 2 + 1) {
                     received.remove(key);
+                    if (!waiting.isEmpty()) {
+                        String msg = waiting.pollFirst();
+                        broadcast(msg);
+                    }
                     delivered.add(key);
 //                    synchronized (deliverCallback) {
                         deliverCallback.accept(receivedMessage.message);
@@ -104,18 +108,22 @@ public class URB {
     }
 
     public void broadcast(String msg) {
-        int messageId = nextMessageId++;
-        byte[] msgBytes = msg.getBytes();
-        byte[] bytes = new byte[HEADER_SIZE + msgBytes.length];
-        BigEndianCoder.encodeInt(messageId, bytes, 0);
-        BigEndianCoder.encodeInt(processId, bytes, 4);
-        System.arraycopy(msgBytes, 0, bytes, HEADER_SIZE, msgBytes.length);
+//        if (received.size() >= SEND_BATCH_SIZE) {
+//            waiting.offerLast(msg);
+//        } else {
+            int messageId = nextMessageId++;
+            byte[] msgBytes = msg.getBytes();
+            byte[] bytes = new byte[HEADER_SIZE + msgBytes.length];
+            BigEndianCoder.encodeInt(messageId, bytes, 0);
+            BigEndianCoder.encodeInt(processId, bytes, 4);
+            System.arraycopy(msgBytes, 0, bytes, HEADER_SIZE, msgBytes.length);
 
-        ReceivedMessage receivedMessage = new ReceivedMessage(msg);
-        receivedMessage.acknowledged.add(processId);
-        received.put(new Pair<>(messageId, processId), receivedMessage);
+            ReceivedMessage receivedMessage = new ReceivedMessage(msg);
+            receivedMessage.acknowledged.add(processId);
+            received.put(new Pair<>(messageId, processId), receivedMessage);
 
-        broadcastSend(bytes);
+            broadcastSend(bytes);
+//        }
     }
 
     public void close() {
