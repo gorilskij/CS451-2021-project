@@ -21,8 +21,9 @@ public final class BigEndianCoder {
 
     // inverse operation of encodeInt
     public static int decodeInt(byte[] bytes) {
-        assert bytes.length == 4 :
-            "wrong length, expected 4 but got " + bytes.length;
+        if (bytes.length != 4) {
+            throw new IllegalStateException("wrong length, expected 4 but got " + bytes.length);
+        }
         return  (bytes[0] + 256) % 256
             + (((bytes[1] + 256) % 256) <<  8)
             + (((bytes[2] + 256) % 256) << 16)

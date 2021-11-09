@@ -1,4 +1,4 @@
-package cs451.perfectLinks;
+package cs451.perfect_links;
 
 import cs451.base.BigEndianCoder;
 
@@ -22,6 +22,10 @@ public class MessageFragment {
 
     MessageFragment(int messageId, String text) {
         this(messageId, 0, true, text.getBytes());
+    }
+
+    MessageFragment(int messageId, byte[] textBytes) {
+        this(messageId, 0, true, textBytes);
     }
 
     // extracts the first message from a byte array

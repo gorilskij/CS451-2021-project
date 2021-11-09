@@ -1,8 +1,7 @@
-package cs451.perfectLinks;
+package cs451.perfect_links;
 
 import cs451.base.BigEndianCoder;
 import cs451.base.FullAddress;
-import cs451.base.Message;
 import cs451.base.Pair;
 
 import java.io.IOException;
@@ -26,7 +25,7 @@ public class PerfectLink {
     // contains (packetId, sourceId)
     private final HashSet<Pair<Integer, Integer>> receivedIds = new HashSet<>(); // TODO: garbage collect
 
-    public PerfectLink(int processId, DatagramSocket socket, Consumer<Message> deliverCallback) {
+    public PerfectLink(int processId, DatagramSocket socket, Consumer<PLMessage> deliverCallback) {
         this.processId = processId;
         this.reconstructor = new Reconstructor(deliverCallback);
 
@@ -60,18 +59,25 @@ public class PerfectLink {
                     } catch (IOException ignored) {
                     }
                 },
-                sendThread::remove
+                sendThread::acknowledge
         );
 
         sendThread.start();
         receiveThread.start();
     }
 
+    private SendQueue getSendQueueFor(FullAddress destination) {
+        return sendQueues.computeIfAbsent(destination, ignored -> new SendQueue(destination, processId, sendThread));
+    }
+
     public void send(String msg, FullAddress destination) {
         int messageId = nextMessageId++;
-        sendQueues
-                .computeIfAbsent(destination, ignored -> new SendQueue(destination, processId, sendThread))
-                .send(messageId, msg);
+        getSendQueueFor(destination).send(messageId, msg);
+    }
+
+    public void send(byte[] msgBytes, FullAddress destination) {
+        int messageId = nextMessageId++;
+        getSendQueueFor(destination).send(messageId, msgBytes);
     }
 
     public void close() {

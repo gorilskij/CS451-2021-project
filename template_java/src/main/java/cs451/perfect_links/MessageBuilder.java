@@ -1,7 +1,7 @@
-package cs451.perfectLinks;
+package cs451.perfect_links;
 
-import cs451.base.Message;
 import java.util.HashMap;
+import java.util.stream.IntStream;
 
 // recombines a message from message fragments
 public class MessageBuilder {
@@ -25,16 +25,22 @@ public class MessageBuilder {
     }
 
     // returns null if not enough fragments are present yet
-    public Message tryBuild() {
+    public PLMessage tryBuild() {
         if (fragments.size() == expectedFragments) {
-            StringBuilder text = new StringBuilder();
+            int length = IntStream
+                    .range(0, expectedFragments)
+                    .map(i -> fragments.get(i).data.length)
+                    .sum();
 
+            byte[] bytes = new byte[length];
+            int current = 0;
             for (int i = 0; i < expectedFragments; i++) {
-                byte[] bytes = fragments.get(i).data;
-                text.append(new String(bytes));
+                byte[] data = fragments.get(i).data;
+                System.arraycopy(data, 0, bytes, current, data.length);
+                current += data.length;
             }
 
-            return new Message(messageId, text.toString(), sourceId);
+            return new PLMessage(messageId, sourceId, bytes);
         }
 
         return null;

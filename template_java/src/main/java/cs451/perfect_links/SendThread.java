@@ -1,4 +1,4 @@
-package cs451.perfectLinks;
+package cs451.perfect_links;
 
 import cs451.base.Pair;
 
@@ -6,6 +6,9 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.util.HashSet;
+import java.util.Map;
+import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -15,10 +18,10 @@ public class SendThread extends Thread {
     private final DatagramSocket socket;
 
     // contains (packetId, packet)
-    private final ConcurrentLinkedQueue<Pair<Integer, DatagramPacket>> waitingPackets = new ConcurrentLinkedQueue<>();
-    private final ConcurrentHashMap<Integer, DatagramPacket> sendingPackets = new ConcurrentHashMap<>(SENDING_BATCH_SIZE);
+    private final Queue<Pair<Integer, DatagramPacket>> waitingPackets = new ConcurrentLinkedQueue<>();
+    private final Map<Integer, DatagramPacket> sendingPackets = new ConcurrentHashMap<>(SENDING_BATCH_SIZE);
     // ids of packets that have been sent and successfully received
-    private final HashSet<Integer> removed = new HashSet<>();
+    private final Set<Integer> removed = new HashSet<>();
 
     private final Runnable awakenSenders;
 
@@ -39,12 +42,15 @@ public class SendThread extends Thread {
         }
     }
 
-    public void remove(int packetId) {
+    public void acknowledge(int packetId) {
+        // TODO get rid of purely safety-oriented duplicate functionality of remove,
+        //  condition the rest of the method on the result of removing from sendingPackets,
+        //  essentially assume that an ack will never arrive for a message that wasn't sent
         if (removed.add(packetId)) {
             DatagramPacket removedPacket = sendingPackets.remove(packetId);
             if (removedPacket == null) {
                 throw new IllegalStateException(
-                        "sender received a remove command for a message that has never existed: " + packetId
+                        "sender received an acknowledge command for a message that has never existed: " + packetId
                 );
             }
 

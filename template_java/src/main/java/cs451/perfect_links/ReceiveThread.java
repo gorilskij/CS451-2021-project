@@ -1,4 +1,4 @@
-package cs451.perfectLinks;
+package cs451.perfect_links;
 
 import cs451.base.BigEndianCoder;
 import cs451.Constants;

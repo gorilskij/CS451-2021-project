@@ -1,13 +1,9 @@
-package cs451.perfectLinks;
+package cs451.perfect_links;
 
 import cs451.base.BigEndianCoder;
-import cs451.base.Message;
 import cs451.base.Pair;
 
-import java.net.DatagramPacket;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.function.Consumer;
 
 /**
@@ -15,12 +11,12 @@ import java.util.function.Consumer;
  * number of times, when a message is ready, it's passed to `deliverCallback`
  */
 public class Reconstructor {
-    private final Consumer<Message> deliverCallback;
+    private final Consumer<PLMessage> deliverCallback;
     // indexed by (messageId, sourceId)
     private final HashMap<Pair<Integer, Integer>, MessageBuilder> builders = new HashMap<>();
     // contains (messageId, sourceId)
 
-    public Reconstructor(Consumer<Message> deliverCallback) {
+    public Reconstructor(Consumer<PLMessage> deliverCallback) {
         this.deliverCallback = deliverCallback;
     }
 
@@ -43,7 +39,7 @@ public class Reconstructor {
             }
             builder.add(fragment);
 
-            Message message = builder.tryBuild();
+            PLMessage message = builder.tryBuild();
             if (message != null) {
                 deliverCallback.accept(message);
                 builders.remove(key);
