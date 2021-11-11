@@ -44,6 +44,10 @@ public class SendThread extends Thread {
 
     // TODO: package acks together with regular messages, give them priority
     public void acknowledge(int packetId) {
+        if (packetId == 0) {
+            throw new IllegalStateException("tried to acknowledge packet 0");
+        }
+
         // TODO get rid of purely safety-oriented duplicate functionality of remove,
         //  condition the rest of the method on the result of removing from sendingPackets,
         //  essentially assume that an ack will never arrive for a message that wasn't sent
@@ -51,7 +55,7 @@ public class SendThread extends Thread {
             DatagramPacket removedPacket = sendingPackets.remove(packetId);
             if (removedPacket == null) {
                 throw new IllegalStateException(
-                        "sender received an acknowledge command for a message that has never existed: " + packetId
+                        "sender received an acknowledge command for a packet that has never existed: " + packetId
                 );
             }
 

@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketTimeoutException;
+import java.util.Arrays;
 import java.util.function.Consumer;
 
 public class ReceiveThread extends Thread {
@@ -37,8 +38,17 @@ public class ReceiveThread extends Thread {
 
             int packetId = BigEndianCoder.decodeInt(buffer, 0);
             if (packetId == 0) {
-                int acknowledgedPacketId = BigEndianCoder.decodeInt(buffer, 8);
-                acknowledgementCallback.accept(acknowledgedPacketId);
+                int numAcks = BigEndianCoder.decodeInt(buffer, 8);
+                for (int i = 0; i < numAcks; i++) {
+                    int acknowledgedPacketId = BigEndianCoder.decodeInt(buffer, i * 4 + 12);
+                    try {
+                        acknowledgementCallback.accept(acknowledgedPacketId);
+                    } catch (IllegalStateException e) {
+                        System.out.println("Full packet:");
+                        System.out.println(Arrays.toString(buffer));
+                        throw e;
+                    }
+                }
             } else {
                 normalPacketCallback.accept(packet);
             }

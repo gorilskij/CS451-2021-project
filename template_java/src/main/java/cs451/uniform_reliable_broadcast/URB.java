@@ -32,8 +32,9 @@ public class URB {
     private final int SEND_BATCH_SIZE = 1;
 
     private final int processId;
+    private final Map<Integer, FullAddress> addresses;
     private final int totalNumProcesses;
-    private final FullAddress[] otherAddresses;
+//    private final FullAddress[] otherAddresses;
     private final PerfectLink perfectLink;
     // TODO: benchmark whether waiting is really needed
     private final Deque<String> waiting = new ConcurrentLinkedDeque<>();
@@ -44,21 +45,22 @@ public class URB {
     private int nextMessageId = 1; // acknowledgements have id 0
 
     // allProcesses includes this process
-    public URB(int processId, List<Pair<Integer, FullAddress>> allProcesses, DatagramSocket socket, Consumer<String> deliverCallback) {
+    public URB(int processId, Map<Integer, FullAddress> addresses, DatagramSocket socket, Consumer<String> deliverCallback) {
         this.processId = processId;
-        totalNumProcesses = allProcesses.size();
-        otherAddresses = new FullAddress[allProcesses.size() - 1];
+        this.addresses = addresses;
+        totalNumProcesses = addresses.size();
+//        otherAddresses = new FullAddress[allProcesses.size() - 1];
 
-        int i = 0;
-        for (Pair<Integer, FullAddress> pair : allProcesses) {
-            Integer otherProcessId = pair.first;
-            if (otherProcessId == processId) {
-                continue;
-            }
-            otherAddresses[i++] = pair.second;
-        }
+//        int i = 0;
+//        for (Pair<Integer, FullAddress> pair : allProcesses) {
+//            Integer otherProcessId = pair.first;
+//            if (otherProcessId == processId) {
+//                continue;
+//            }
+//            otherAddresses[i++] = pair.second;
+//        }
 
-        perfectLink = new PerfectLink(processId, socket, message -> {
+        perfectLink = new PerfectLink(processId, addresses, socket, message -> {
             byte[] bytes = message.getTextBytes();
 
             // in this case sourceId refers to the process that sent
@@ -107,8 +109,10 @@ public class URB {
     }
 
     private void broadcastSend(byte[] bytes) {
-        for (FullAddress otherAddress : otherAddresses) {
-            perfectLink.send(bytes, otherAddress);
+        for (int pid : addresses.keySet()) {
+            if (pid != processId) {
+                perfectLink.send(bytes, pid);
+            }
         }
     }
 

@@ -36,7 +36,7 @@ public class Main {
         });
     }
 
-    private static void runPerfectLinksTest(Parser parser) {
+    private static void runPerfectLinksTest(Parser parser, int myPort, Map<Integer, FullAddress> addresses) {
         System.out.println("Doing some initialization\n");
         int numMessages;
         int receiverId;
@@ -50,31 +50,8 @@ public class Main {
         }
 
         // find out who the receiver is
-        InetAddress receiverAddress = null;
-        int receiverPort = -1;
-        int myPort = -1;
-        for (Host host : parser.hosts()) {
-            if (host.getId() == receiverId) {
-                try {
-                    receiverAddress = InetAddress.getByName(host.getIp());
-                } catch (UnknownHostException e) {
-                    throw new Error(e);
-                }
-                receiverPort = host.getPort();
-            }
-
-            if (host.getId() == parser.myId()) {
-                myPort = host.getPort();
-            }
-
-            if (receiverPort > -1 && myPort > -1) {
-                break;
-            }
-        }
         boolean isReceiver = parser.myId() == receiverId;
 
-
-        FullAddress receiverFullAddress = new FullAddress(receiverAddress, receiverPort);
         DatagramSocket socket;
         try {
             socket = new DatagramSocket(myPort);
@@ -92,12 +69,15 @@ public class Main {
         System.out.println("expecting " + expectedMessages + " messages");
         int[] totalMessages = {0};
 
-        PerfectLink perfectLink = new PerfectLink(parser.myId(), socket, delivered -> {
+        PerfectLink perfectLink = new PerfectLink(parser.myId(), addresses, socket, delivered -> {
             eventHistory.logDelivery(delivered.sourceId, delivered.messageId);
 
             // for debug
             totalMessages[0] += 1;
-            System.out.println("total: " + totalMessages[0]);
+            int tm = totalMessages[0];
+            if (expectedMessages - tm < 1000 || tm % 100_000 == 0) {
+                System.out.println("total: " + totalMessages[0]);
+            }
             if (totalMessages[0] == expectedMessages) {
                 long end = System.nanoTime();
                 if (isReceiver) {
@@ -115,7 +95,7 @@ public class Main {
         // send
         if (!isReceiver) {
             for (int i = 0; i < numMessages; i++) {
-                perfectLink.send("message " + i + " from process " + parser.myId(), receiverFullAddress);
+                perfectLink.send("message " + i + " from process " + parser.myId(), receiverId);
                 eventHistory.logBroadcast(i);
             }
         }
@@ -124,7 +104,7 @@ public class Main {
         // it waits forever for the delivery of messages.
     }
 
-    private static void runFifoTest(Parser parser) {
+    private static void runFifoTest(Parser parser, int myPort, Map<Integer, FullAddress> addresses) {
         System.out.println("Doing some initialization\n");
         int numMessages;
         try {
@@ -132,23 +112,6 @@ public class Main {
             numMessages = Integer.parseInt(config);
         } catch (IOException e) {
             throw new Error(e);
-        }
-
-        List<Pair<Integer, FullAddress>> allProcesses = new ArrayList<>();
-        int myPort = -1;
-        for (Host host : parser.hosts()) {
-            InetAddress hostAddress;
-            try {
-                hostAddress = InetAddress.getByName(host.getIp());
-            } catch (UnknownHostException e) {
-                throw new IllegalStateException(e);
-            }
-            FullAddress fullAddress = new FullAddress(hostAddress, host.getPort());
-            allProcesses.add(new Pair<>(host.getId(), fullAddress));
-
-            if (host.getId() == parser.myId()) {
-                myPort = host.getPort();
-            }
         }
 
         DatagramSocket socket;
@@ -162,7 +125,7 @@ public class Main {
         int expectedMessages = numMessages * parser.hosts().size();
         System.out.println("Expecting " + expectedMessages + " messages");
         int[] totalMessages = new int[] {0};
-        URB urb = new URB(parser.myId(), allProcesses, socket, message -> {
+        URB urb = new URB(parser.myId(), addresses, socket, message -> {
             totalMessages[0] += 1;
             if (totalMessages[0] >= expectedMessages) {
 //                System.out.println("DELIVER: \"" + message + "\"");
@@ -225,7 +188,24 @@ public class Main {
         System.out.println("===============");
         System.out.println(parser.config() + "\n");
 
-//        runPerfectLinksTest(parser);
-        runFifoTest(parser);
+        Map<Integer, FullAddress> addresses = new HashMap<>();
+        int myPort = -1;
+        for (Host host : parser.hosts()) {
+            InetAddress hostAddress;
+            try {
+                hostAddress = InetAddress.getByName(host.getIp());
+            } catch (UnknownHostException e) {
+                throw new IllegalStateException(e);
+            }
+            FullAddress fullAddress = new FullAddress(hostAddress, host.getPort());
+            addresses.put(host.getId(), fullAddress);
+
+            if (host.getId() == parser.myId()) {
+                myPort = host.getPort();
+            }
+        }
+
+//        runPerfectLinksTest(parser, myPort, addresses);
+        runFifoTest(parser, myPort, addresses);
     }
 }

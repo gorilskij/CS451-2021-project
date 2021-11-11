@@ -13,9 +13,10 @@ import java.util.function.Consumer;
 
 public class PerfectLink {
     private final int processId;
+    private final Map<Integer, FullAddress> addresses;
 
     // *** sending ***
-    private final ConcurrentHashMap<FullAddress, SendQueue> sendQueues = new ConcurrentHashMap<>();
+    private final Map<Integer, SendQueue> sendQueues = new ConcurrentHashMap<>();
     private final SendThread sendThread;
     private int nextMessageId = 0;
 
@@ -25,8 +26,9 @@ public class PerfectLink {
     // contains (packetId, sourceId)
     private final HashSet<Pair<Integer, Integer>> receivedIds = new HashSet<>(); // TODO: garbage collect
 
-    public PerfectLink(int processId, DatagramSocket socket, Consumer<PLMessage> deliverCallback) {
+    public PerfectLink(int processId, Map<Integer, FullAddress> addresses, DatagramSocket socket, Consumer<PLMessage> deliverCallback) {
         this.processId = processId;
+        this.addresses = addresses;
         this.reconstructor = new Reconstructor(deliverCallback);
 
         sendThread = new SendThread(socket, () -> {
@@ -48,16 +50,7 @@ public class PerfectLink {
                     }
 
                     // send acknowledgement
-                    try {
-                        Packet acknowledgement = new Packet(packetId, packetData).acknowledgement(sourceId);
-                        socket.send(new DatagramPacket(
-                                acknowledgement.data,
-                                acknowledgement.data.length,
-                                normalPacket.getAddress(),
-                                normalPacket.getPort()
-                        ));
-                    } catch (IOException ignored) {
-                    }
+                    getSendQueueFor(sourceId).sendAck(packetId);
                 },
                 sendThread::acknowledge
         );
@@ -66,18 +59,22 @@ public class PerfectLink {
         receiveThread.start();
     }
 
-    private SendQueue getSendQueueFor(FullAddress destination) {
-        return sendQueues.computeIfAbsent(destination, ignored -> new SendQueue(destination, processId, sendThread));
+    private SendQueue getSendQueueFor(Integer pid) {
+        FullAddress destination = addresses.get(pid);
+        if (destination == null) {
+            throw new IllegalStateException("no destination for pid " + pid);
+        }
+        return sendQueues.computeIfAbsent(pid, ignored -> new SendQueue(destination, processId, sendThread));
     }
 
-    public void send(String msg, FullAddress destination) {
+    public void send(String msg, Integer processId) {
         int messageId = nextMessageId++;
-        getSendQueueFor(destination).send(messageId, msg);
+        getSendQueueFor(processId).send(messageId, msg);
     }
 
-    public void send(byte[] msgBytes, FullAddress destination) {
+    public void send(byte[] msgBytes, Integer processId) {
         int messageId = nextMessageId++;
-        getSendQueueFor(destination).send(messageId, msgBytes);
+        getSendQueueFor(processId).send(messageId, msgBytes);
     }
 
     public void close() {
