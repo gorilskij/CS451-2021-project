@@ -8,7 +8,7 @@ import cs451.perfect_links.PerfectLink;
 import java.net.DatagramSocket;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Consumer;
 
 class ReceivedMessage {
@@ -28,8 +28,8 @@ class ReceivedMessage {
 // distinct meaning from messageId and sourceId (which are used
 // by PerfectLink)
 public class URB {
-    private final int HEADER_SIZE = 8; // bytes
-    private final int SEND_BATCH_SIZE = 1;
+    private static final int HEADER_SIZE = 8; // bytes
+    private static final int SEND_BATCH_SIZE = 1000;
 
     private final int processId;
     private final Map<Integer, FullAddress> addresses;
@@ -37,7 +37,7 @@ public class URB {
 //    private final FullAddress[] otherAddresses;
     private final PerfectLink perfectLink;
     // TODO: benchmark whether waiting is really needed
-    private final Deque<String> waiting = new ConcurrentLinkedDeque<>();
+    private final Queue<String> waiting = new ConcurrentLinkedQueue<>();
     // (urbMessageId, urbSourceId): processes that acknowledge
     private final Map<Pair<Integer, Integer>, ReceivedMessage> received = new ConcurrentHashMap<>();
     // (urbMessageId, urbSourceId)
@@ -79,8 +79,11 @@ public class URB {
 
             Pair<Integer, Integer> key = new Pair<>(urbMessageId, urbSourceId);
             if (!delivered.contains(key)) {
+                boolean[] rebroadcast = {false};
+
                 ReceivedMessage receivedMessage = received.computeIfAbsent(key, ignored -> {
-                    System.out.println("received new message");
+//                    System.out.println("received new message");
+                    rebroadcast[0] = true;
                     String text = new String(bytes, HEADER_SIZE, bytes.length - HEADER_SIZE);
                     ReceivedMessage rm = new ReceivedMessage(text);
                     rm.acknowledged.add(processId);
@@ -89,11 +92,11 @@ public class URB {
 
                 receivedMessage.acknowledged.add(message.sourceId);
                 if (receivedMessage.acknowledged.size() >= totalNumProcesses / 2 + 1) {
-                    System.out.println("50% + 1 acknowledged, delivering");
+//                    System.out.println("50% + 1 acknowledged, delivering");
                     received.remove(key);
+                    // broadcast next message in queue
                     if (!waiting.isEmpty()) {
-                        String msg = waiting.pollFirst();
-                        System.out.println("rebroadcast");
+                        String msg = waiting.poll();
                         broadcast(msg);
                     }
                     delivered.add(key);
@@ -102,8 +105,13 @@ public class URB {
 //                    }
                 }
 
+                // TODO: rebroadcast to everyone except the original sender and the current sender
+                //  for those two, just send an ack
                 // rebroadcast
-                broadcastSend(message.getTextBytes());
+                if (rebroadcast[0]) {
+//                    System.out.println("rebroadcast");
+                    broadcastSend(message.getTextBytes());
+                }
             }
         });
     }
@@ -117,9 +125,9 @@ public class URB {
     }
 
     public synchronized void broadcast(String msg) {
-        System.out.println("broadcast");
+//        System.out.println("broadcast");
         if (received.size() >= SEND_BATCH_SIZE) {
-            waiting.offerLast(msg);
+            waiting.offer(msg);
         } else {
             int messageId = nextMessageId++;
             byte[] msgBytes = msg.getBytes();

@@ -30,6 +30,7 @@ public class ReceiveThread extends Thread {
 
             try {
                 socket.receive(packet);
+//                System.out.println("packet arrived");
             } catch (SocketTimeoutException e) {
                 continue;
             } catch (IOException e) {

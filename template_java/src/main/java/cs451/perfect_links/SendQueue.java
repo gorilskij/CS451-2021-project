@@ -34,6 +34,12 @@ public class SendQueue {
         this.sendThread = sendThread;
     }
 
+    private void sendPacket(Packet packet) {
+//        System.out.println("packet departing with " + packet.data.length + " bytes");
+        DatagramPacket udpPacket = new DatagramPacket(packet.data, packet.data.length, destination.address, destination.port);
+        sendThread.send(packet.packetId, udpPacket);
+    }
+
     private void sendMessageFragment(MessageFragment fragment) {
         if (fragment == null) {
             throw new IllegalStateException("tried to sendMessageFragment(null)");
@@ -44,8 +50,7 @@ public class SendQueue {
 
         Packet maybePacket = tryMakePacket();
         if (maybePacket != null) {
-            DatagramPacket packet = new DatagramPacket(maybePacket.data, maybePacket.data.length, destination.address, destination.port);
-            sendThread.send(maybePacket.packetId, packet);
+            sendPacket(maybePacket);
         }
     }
 
@@ -61,22 +66,17 @@ public class SendQueue {
         ackQueue.offer(packetId);
         Packet maybePacket = tryMakeAckPacket();
         if (maybePacket != null) {
-            DatagramPacket packet = new DatagramPacket(maybePacket.data, maybePacket.data.length, destination.address, destination.port);
-            sendThread.send(maybePacket.packetId, packet);
+            sendPacket(maybePacket);
         }
     }
 
     private void flush() {
         Packet maybePacket;
-
         while ((maybePacket = forceMakeAckPacket()) != null) {
-            DatagramPacket packet = new DatagramPacket(maybePacket.data, maybePacket.data.length, destination.address, destination.port);
-            sendThread.send(maybePacket.packetId, packet);
+            sendPacket(maybePacket);
         }
-
         while ((maybePacket = forceMakePacket()) != null) {
-            DatagramPacket packet = new DatagramPacket(maybePacket.data, maybePacket.data.length, destination.address, destination.port);
-            sendThread.send(maybePacket.packetId, packet);
+            sendPacket(maybePacket);
         }
     }
 
@@ -87,7 +87,6 @@ public class SendQueue {
     // makes a packet even if it would be underfilled
     // only returns null if there are no fragments at all
     private synchronized Packet forceMakePacket() {
-        // TODO: resolve this
         if (queue.isEmpty()) {
             return null;
         }

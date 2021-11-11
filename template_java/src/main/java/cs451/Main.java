@@ -15,6 +15,24 @@ import java.util.List;
 import java.util.Map;
 
 public class Main {
+    // big strings used for debugging
+    // 1 kilobyte
+    private static final String s1kb = "" +
+            "FYrF0Pn7unCyK/iMZMzumDfjqcuOzWHrQcS9+PtfhyHmGc6w+vfM2rnUa9YbWjl+8kKBpDZg8EOuDYzT/Aeiakf30O9rw18FmvRE" +
+            "rKj0XosNgPwznzhxJ1LNPOtnKoQmF55+MGl/ar4E1UnRAUqoPQrOdUbDMo2qkZv2dzSTC+XcN1alv+Jr2Psyzw5i6S8Z7lGNAXGf" +
+            "x7HKHqlL4+WQNJP+BvxUvCIVhTHSr80KY/z7z2ltAPzWqTtXcAhSzxC8H8dyNkUbsIQwGzym+nDVP1+/i9HG4nieG4Nvkr4egbek" +
+            "jIHDjdgJPURcsWq7NJClLrZASiRSiQ0OcBSsIb8Oga8l9lojLZRhh1ZCYhD4wE41zg7TUnd1FKqgvXmn0MuHchaDHIkBwylT6hNb" +
+            "zE2dhRc76DMDvWxOQcBQYK795wDTk/MvDufaoIZOBV4c3hf7R6XGerONi1g94qD1q8YJSLYVD9wyhQ6hyfkiO3BfPhSwmz9RYWXc" +
+            "8GyXGFls1lx7ZUMrMZAkflCSytameeITkf6OYLI01Ca4DWy+vzKOSmZwApcRoJ6+5SrJZzzMAZOZHyjSf0m6ELV9sR5GzRBBM3h6" +
+            "h6/zuLelXn5ltDv03bENbEW7hdxC88A5cu4znEq8xDpNmioF6EwFiqHA9X4O+iiRNl4yax01eoT1k5nNIooyRHASRoNdT5zGR9vr" +
+            "ckK2DzIIsIH7UJ0fF9Zi6Ffdrq2JOFRuKC3Tig99R5bAOWqqeFgHXSzJxK/Cvffy1BD4M6BZv0+oQTYT1pKfgesW7CV++INnp+JN" +
+            "FfWhAEzb0Be1YrZa1A/hoXzqHvEA9qTmnCyBKMLXJM22gORBuvePreGXkyc5f+KILhrwE+qO31RIPoHW6yA9JH8S+eK7RzdO+Nbq" +
+            "xIVovE6qZh2JLaJydHdliI47+O36RCzHzzx4vIAHLwMaDQV8wHP3MNoaRCLyoDbKlcANGEva7PD9V+jycaSGucgvnW6lWm+RaSPb";
+    // 10 kilobytes
+    private static final String s10kb = s1kb.repeat(10);
+    // 100 kilobytes
+    private static final String s100kb = s10kb.repeat(10);
+
     private static final EventHistory eventHistory = new EventHistory();
     private static String outputFilePath;
 
@@ -69,13 +87,20 @@ public class Main {
         System.out.println("expecting " + expectedMessages + " messages");
         int[] totalMessages = {0};
 
+        System.out.println("begin listening");
         PerfectLink perfectLink = new PerfectLink(parser.myId(), addresses, socket, delivered -> {
             eventHistory.logDelivery(delivered.sourceId, delivered.messageId);
+
+            if (!delivered.getText().equals(s100kb)) {
+                throw new IllegalStateException("Bad message received");
+            }
 
             // for debug
             totalMessages[0] += 1;
             int tm = totalMessages[0];
-            if (expectedMessages - tm < 1000 || tm % 100_000 == 0) {
+            if (tm % 100_000 == 0
+                    || expectedMessages - tm < 1000 && tm % 100 == 0
+                    || expectedMessages - tm < 100) {
                 System.out.println("total: " + totalMessages[0]);
             }
             if (totalMessages[0] == expectedMessages) {
@@ -95,7 +120,8 @@ public class Main {
         // send
         if (!isReceiver) {
             for (int i = 0; i < numMessages; i++) {
-                perfectLink.send("message " + i + " from process " + parser.myId(), receiverId);
+//                perfectLink.send("message " + i + " from process " + parser.myId(), receiverId);
+                perfectLink.send(s100kb, receiverId);
                 eventHistory.logBroadcast(i);
             }
         }
@@ -122,26 +148,41 @@ public class Main {
             throw new Error(e);
         }
 
+        long start = System.nanoTime();
+
+        String sendMessage = s10kb;
+
         int expectedMessages = numMessages * parser.hosts().size();
         System.out.println("Expecting " + expectedMessages + " messages");
         int[] totalMessages = new int[] {0};
         URB urb = new URB(parser.myId(), addresses, socket, message -> {
+            if (!message.equals(sendMessage)) {
+                throw new IllegalStateException("Bad message received");
+            }
+
             totalMessages[0] += 1;
             if (totalMessages[0] >= expectedMessages) {
-//                System.out.println("DELIVER: \"" + message + "\"");
+                long end = System.nanoTime();
+                System.out.println("total number of messages received: " + totalMessages[0]);
+                System.out.println("time taken: " + (end - start) / 1_000_000 + "ms");
+                System.out.println("messages/s: " + ((long) (totalMessages[0] * 1e9) / (end - start)));
 
                 if (totalMessages[0] > expectedMessages) {
                     System.out.println("ERROR: DELIVERED MORE MESSAGES THAN EXPECTED");
                     System.exit(1);
                 }
+            } else {
+                int tm = totalMessages[0];
+                if (tm % 100_000 == 0
+                        || expectedMessages - tm < 1000 && tm % 100 == 0
+                        || expectedMessages - tm < 100) {
+                    System.out.println("total: " + totalMessages[0]);
+                }
             }
-            System.out.println("    total: " + totalMessages[0]);
         });
 
         for (int i = 0; i < numMessages; i++) {
-            String message = "message " + i + " from process " + parser.myId();
-//            System.out.println("BROADCAST: \"" + message + "\"");
-            urb.broadcast(message);
+            urb.broadcast(sendMessage);
         }
     }
 
