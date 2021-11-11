@@ -97,6 +97,7 @@ public class Main {
 
             // for debug
             totalMessages[0] += 1;
+            System.out.println("total: " + totalMessages[0]);
             if (totalMessages[0] == expectedMessages) {
                 long end = System.nanoTime();
                 if (isReceiver) {
@@ -226,6 +227,5 @@ public class Main {
 
 //        runPerfectLinksTest(parser);
         runFifoTest(parser);
-
     }
 }

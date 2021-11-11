@@ -8,6 +8,7 @@ import cs451.perfect_links.PerfectLink;
 import java.net.DatagramSocket;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.function.Consumer;
 
 class ReceivedMessage {
@@ -28,13 +29,14 @@ class ReceivedMessage {
 // by PerfectLink)
 public class URB {
     private final int HEADER_SIZE = 8; // bytes
-    private final int SEND_BATCH_SIZE = 100;
+    private final int SEND_BATCH_SIZE = 1;
 
     private final int processId;
     private final int totalNumProcesses;
     private final FullAddress[] otherAddresses;
     private final PerfectLink perfectLink;
-    private final Deque<String> waiting = new ArrayDeque<>();
+    // TODO: benchmark whether waiting is really needed
+    private final Deque<String> waiting = new ConcurrentLinkedDeque<>();
     // (urbMessageId, urbSourceId): processes that acknowledge
     private final Map<Pair<Integer, Integer>, ReceivedMessage> received = new ConcurrentHashMap<>();
     // (urbMessageId, urbSourceId)
@@ -76,6 +78,7 @@ public class URB {
             Pair<Integer, Integer> key = new Pair<>(urbMessageId, urbSourceId);
             if (!delivered.contains(key)) {
                 ReceivedMessage receivedMessage = received.computeIfAbsent(key, ignored -> {
+                    System.out.println("received new message");
                     String text = new String(bytes, HEADER_SIZE, bytes.length - HEADER_SIZE);
                     ReceivedMessage rm = new ReceivedMessage(text);
                     rm.acknowledged.add(processId);
@@ -84,9 +87,11 @@ public class URB {
 
                 receivedMessage.acknowledged.add(message.sourceId);
                 if (receivedMessage.acknowledged.size() >= totalNumProcesses / 2 + 1) {
+                    System.out.println("50% + 1 acknowledged, delivering");
                     received.remove(key);
                     if (!waiting.isEmpty()) {
                         String msg = waiting.pollFirst();
+                        System.out.println("rebroadcast");
                         broadcast(msg);
                     }
                     delivered.add(key);
@@ -107,10 +112,11 @@ public class URB {
         }
     }
 
-    public void broadcast(String msg) {
-//        if (received.size() >= SEND_BATCH_SIZE) {
-//            waiting.offerLast(msg);
-//        } else {
+    public synchronized void broadcast(String msg) {
+        System.out.println("broadcast");
+        if (received.size() >= SEND_BATCH_SIZE) {
+            waiting.offerLast(msg);
+        } else {
             int messageId = nextMessageId++;
             byte[] msgBytes = msg.getBytes();
             byte[] bytes = new byte[HEADER_SIZE + msgBytes.length];
@@ -123,7 +129,7 @@ public class URB {
             received.put(new Pair<>(messageId, processId), receivedMessage);
 
             broadcastSend(bytes);
-//        }
+        }
     }
 
     public void close() {

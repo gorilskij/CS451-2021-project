@@ -42,6 +42,7 @@ public class SendThread extends Thread {
         }
     }
 
+    // TODO: package acks together with regular messages, give them priority
     public void acknowledge(int packetId) {
         // TODO get rid of purely safety-oriented duplicate functionality of remove,
         //  condition the rest of the method on the result of removing from sendingPackets,
@@ -70,7 +71,10 @@ public class SendThread extends Thread {
     public void run() {
         while (true) {
             try {
-                Thread.sleep(300);
+                // TODO: make this variable (based on what?)
+                //  in effect, the speed decreases towards the end of transmission
+                //  why..?
+                Thread.sleep(10);
             } catch (InterruptedException e) {
                 interrupt();
             }
