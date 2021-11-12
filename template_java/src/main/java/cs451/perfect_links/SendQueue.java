@@ -11,16 +11,18 @@ import java.util.Deque;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.LinkedBlockingQueue;
 
 public class SendQueue {
     private final FullAddress destination;
     private final int sourceId;
     private final SendThread sendThread;
 
-    private final Deque<MessageFragment> queue = new ConcurrentLinkedDeque<>();
+    private final Deque<MessageFragment> queue = new LinkedBlockingDeque<>();
     private int totalQueueSize = 0;
 
-    private final Queue<Integer> ackQueue = new ConcurrentLinkedQueue<>();
+    private final Queue<Integer> ackQueue = new LinkedBlockingQueue<>();
 
     private int nextPacketId = 1; // 0 is used to identify ack packets
 

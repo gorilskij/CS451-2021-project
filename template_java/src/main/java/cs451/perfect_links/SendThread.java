@@ -10,7 +10,7 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 public class SendThread extends Thread {
     private final int SENDING_BATCH_SIZE = 100;
@@ -18,7 +18,7 @@ public class SendThread extends Thread {
     private final DatagramSocket socket;
 
     // contains (packetId, packet)
-    private final Queue<Pair<Integer, DatagramPacket>> waitingPackets = new ConcurrentLinkedQueue<>();
+    private final Queue<Pair<Integer, DatagramPacket>> waitingPackets = new LinkedBlockingQueue<>();
     private final Map<Integer, DatagramPacket> sendingPackets = new ConcurrentHashMap<>(SENDING_BATCH_SIZE);
     // ids of packets that have been sent and successfully received
     private final Set<Integer> removed = new HashSet<>();
@@ -59,7 +59,7 @@ public class SendThread extends Thread {
                 );
             }
 
-            // add a message from allMessages to sendingBatch and send it in the process
+            // put a packet into the sending batch and send it in the process
             Pair<Integer, DatagramPacket> pair = waitingPackets.poll();
             if (pair != null) {
                 try {

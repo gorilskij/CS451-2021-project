@@ -9,6 +9,7 @@ import java.net.DatagramSocket;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Consumer;
 
 class ReceivedMessage {
@@ -37,7 +38,7 @@ public class URB {
 //    private final FullAddress[] otherAddresses;
     private final PerfectLink perfectLink;
     // TODO: benchmark whether waiting is really needed
-    private final Queue<String> waiting = new ConcurrentLinkedQueue<>();
+    private final Queue<String> waiting = new LinkedBlockingQueue<>();
     // (urbMessageId, urbSourceId): processes that acknowledge
     private final Map<Pair<Integer, Integer>, ReceivedMessage> received = new ConcurrentHashMap<>();
     // (urbMessageId, urbSourceId)
@@ -100,9 +101,7 @@ public class URB {
                         broadcast(msg);
                     }
                     delivered.add(key);
-//                    synchronized (deliverCallback) {
-                        deliverCallback.accept(receivedMessage.message);
-//                    }
+                    deliverCallback.accept(receivedMessage.message);
                 }
 
                 // TODO: rebroadcast to everyone except the original sender and the current sender
@@ -125,10 +124,12 @@ public class URB {
     }
 
     public synchronized void broadcast(String msg) {
-//        System.out.println("broadcast");
+//        System.out.println("try broadcast message: " + msg);
         if (received.size() >= SEND_BATCH_SIZE) {
+//            System.out.println("enqueue");
             waiting.offer(msg);
         } else {
+//            System.out.println("broadcast");
             int messageId = nextMessageId++;
             byte[] msgBytes = msg.getBytes();
             byte[] bytes = new byte[HEADER_SIZE + msgBytes.length];
@@ -142,6 +143,7 @@ public class URB {
 
             broadcastSend(bytes);
         }
+//        System.out.println("new state: received: " + received.size() + ", waiting: " + waiting.size());
     }
 
     public void close() {

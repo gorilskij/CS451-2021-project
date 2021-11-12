@@ -91,9 +91,9 @@ public class Main {
         PerfectLink perfectLink = new PerfectLink(parser.myId(), addresses, socket, delivered -> {
             eventHistory.logDelivery(delivered.sourceId, delivered.messageId);
 
-            if (!delivered.getText().equals(s100kb)) {
-                throw new IllegalStateException("Bad message received");
-            }
+//            if (!delivered.getText().equals(s100kb)) {
+//                throw new IllegalStateException("Bad message received");
+//            }
 
             // for debug
             totalMessages[0] += 1;
@@ -120,8 +120,7 @@ public class Main {
         // send
         if (!isReceiver) {
             for (int i = 0; i < numMessages; i++) {
-//                perfectLink.send("message " + i + " from process " + parser.myId(), receiverId);
-                perfectLink.send(s100kb, receiverId);
+                perfectLink.send("" + i, receiverId);
                 eventHistory.logBroadcast(i);
             }
         }
@@ -156,9 +155,9 @@ public class Main {
         System.out.println("Expecting " + expectedMessages + " messages");
         int[] totalMessages = new int[] {0};
         URB urb = new URB(parser.myId(), addresses, socket, message -> {
-            if (!message.equals(sendMessage)) {
-                throw new IllegalStateException("Bad message received");
-            }
+//            if (!message.equals(sendMessage)) {
+//                throw new IllegalStateException("Bad message received");
+//            }
 
             totalMessages[0] += 1;
             if (totalMessages[0] >= expectedMessages) {
@@ -182,7 +181,7 @@ public class Main {
         });
 
         for (int i = 0; i < numMessages; i++) {
-            urb.broadcast(sendMessage);
+            urb.broadcast("" + i);
         }
     }
 
@@ -246,7 +245,7 @@ public class Main {
             }
         }
 
-//        runPerfectLinksTest(parser, myPort, addresses);
-        runFifoTest(parser, myPort, addresses);
+        runPerfectLinksTest(parser, myPort, addresses);
+//        runFifoTest(parser, myPort, addresses);
     }
 }
