@@ -18,7 +18,7 @@ public class PerfectLink {
     // *** sending ***
     private final Map<Integer, SendQueue> sendQueues = new ConcurrentHashMap<>();
     private final SendThread sendThread;
-    private int nextMessageId = 0;
+    private int nextMessageId = 1;
 
     // *** receiving ***
     private final ReceiveThread receiveThread;
