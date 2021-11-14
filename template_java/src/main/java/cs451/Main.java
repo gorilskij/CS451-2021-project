@@ -174,8 +174,8 @@ public class Main {
             } else {
                 int tm = totalMessages[0];
                 if (tm % 1000 == 0
-//                        || expectedMessages - tm < 1000 && tm % 100 == 0
-                        || expectedMessages - tm < 2000) {
+                        || expectedMessages - tm < 1000 && tm % 100 == 0
+                        || expectedMessages - tm < 100) {
                     System.out.println("total: " + totalMessages[0]);
                 }
             }
@@ -246,7 +246,7 @@ public class Main {
             }
         }
 
-//        runPerfectLinksTest(parser, myPort, addresses);
-        runFifoTest(parser, myPort, addresses);
+        runPerfectLinksTest(parser, myPort, addresses);
+//        runFifoTest(parser, myPort, addresses);
     }
 }

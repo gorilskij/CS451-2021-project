@@ -80,9 +80,9 @@ public class URB {
         if (!delivered.contains(key)) {
             boolean[] rebroadcast = {false};
 
-            System.out.println("URB RECEIVE " + urbMessageId + " FROM " + urbSourceId);
+//            System.out.println("URB RECEIVE " + urbMessageId + " FROM " + urbSourceId);
             AckCounter ackCounter = received.computeIfAbsent(key, ignored -> {
-                System.out.println("> is new");
+//                System.out.println("> is new");
                 rebroadcast[0] = true;
                 String text = new String(bytes, HEADER_SIZE, bytes.length - HEADER_SIZE);
                 AckCounter counter = new AckCounter(new URBMessage(urbMessageId, urbSourceId, text));
@@ -92,7 +92,7 @@ public class URB {
 
             ackCounter.acknowledged.add(message.sourceId);
             if (ackCounter.acknowledged.size() >= totalNumProcesses / 2 + 1) {
-                System.out.println("> URB DELIVER");
+//                System.out.println("> URB DELIVER");
 //                    System.out.println("50% + 1 acknowledged, delivering");
                 received.remove(key);
                 // broadcast next message in queue
@@ -117,7 +117,7 @@ public class URB {
     private void broadcastSend(byte[] bytes) {
         int urbMessageId = BigEndianCoder.decodeInt(bytes, 0);
         int urbSourceId = BigEndianCoder.decodeInt(bytes, 4);
-        System.out.println("URB SEND " + urbMessageId + " FROM " + urbSourceId);
+//        System.out.println("URB SEND " + urbMessageId + " FROM " + urbSourceId);
 
         for (int pid : addresses.keySet()) {
             if (pid != processId) {
