@@ -1,18 +1,19 @@
-package cs451.perfect_links;
+package cs451.message;
 
-public class PLMessage {
+// Note that PLMessage and URBMessage are internally the same but semantically different
+public abstract class Message {
     public final int messageId;
     public final int sourceId;
     private String text = null;
     private byte[] textBytes = null;
 
-    public PLMessage(int messageId, int sourceId, String text) {
+    public Message(int messageId, int sourceId, String text) {
         this.messageId = messageId;
         this.sourceId = sourceId;
         this.text = text;
     }
 
-    public PLMessage(int messageId, int sourceId, byte[] textBytes) {
+    public Message(int messageId, int sourceId, byte[] textBytes) {
         this.messageId = messageId;
         this.sourceId = sourceId;
         this.textBytes = textBytes;

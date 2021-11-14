@@ -1,7 +1,6 @@
 package cs451;
 
 import cs451.base.FullAddress;
-import cs451.base.Pair;
 import cs451.perfect_links.PerfectLink;
 import cs451.uniform_reliable_broadcast.URB;
 
@@ -9,9 +8,7 @@ import java.io.IOException;
 import java.net.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 public class Main {
@@ -154,10 +151,8 @@ public class Main {
         int expectedMessages = numMessages * parser.hosts().size();
         System.out.println("Expecting " + expectedMessages + " messages");
         int[] totalMessages = new int[] {0};
-        URB urb = new URB(parser.myId(), addresses, socket, message -> {
-//            if (!message.equals(sendMessage)) {
-//                throw new IllegalStateException("Bad message received");
-//            }
+        URB urb = new URB(parser.myId(), addresses, socket, delivered -> {
+            eventHistory.logDelivery(delivered.sourceId, delivered.messageId);
 
             totalMessages[0] += 1;
             if (totalMessages[0] >= expectedMessages) {
@@ -172,7 +167,7 @@ public class Main {
                 }
             } else {
                 int tm = totalMessages[0];
-                if (tm % 100_000 == 0
+                if (tm % 1000 == 0
                         || expectedMessages - tm < 1000 && tm % 100 == 0
                         || expectedMessages - tm < 100) {
                     System.out.println("total: " + totalMessages[0]);
@@ -245,7 +240,7 @@ public class Main {
             }
         }
 
-        runPerfectLinksTest(parser, myPort, addresses);
-//        runFifoTest(parser, myPort, addresses);
+//        runPerfectLinksTest(parser, myPort, addresses);
+        runFifoTest(parser, myPort, addresses);
     }
 }

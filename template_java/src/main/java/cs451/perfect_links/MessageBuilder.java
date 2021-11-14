@@ -1,5 +1,7 @@
 package cs451.perfect_links;
 
+import cs451.message.PLMessage;
+
 import java.util.HashMap;
 import java.util.stream.IntStream;
 

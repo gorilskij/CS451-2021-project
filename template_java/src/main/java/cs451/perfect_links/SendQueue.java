@@ -5,12 +5,9 @@ import cs451.Constants;
 import cs451.base.FullAddress;
 
 import java.net.DatagramPacket;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -42,13 +39,15 @@ public class SendQueue {
         sendThread.send(packet.packetId, udpPacket);
     }
 
-    private void sendMessageFragment(MessageFragment fragment) {
+    private synchronized void sendMessageFragment(MessageFragment fragment) {
         if (fragment == null) {
             throw new IllegalStateException("tried to sendMessageFragment(null)");
         }
 
-        queue.add(fragment);
+        queue.offer(fragment);
         totalQueueSize += fragment.size();
+
+        testQueue();
 
         Packet maybePacket = tryMakePacket();
         if (maybePacket != null) {
@@ -86,6 +85,16 @@ public class SendQueue {
         flush();
     }
 
+    private void testQueue() {
+        int realQueueSize = 0;
+        for (MessageFragment f : queue) {
+            realQueueSize += f.size();
+        }
+        if (realQueueSize != totalQueueSize) {
+            throw new IllegalStateException("real: " + realQueueSize + ", total: " + totalQueueSize);
+        }
+    }
+
     // makes a packet even if it would be underfilled
     // only returns null if there are no fragments at all
     private synchronized Packet forceMakePacket() {
@@ -102,17 +111,22 @@ public class SendQueue {
             }
 
 //            System.out.println("space remaining: " + spaceRemaining);
-            if (queue.peek().size() <= spaceRemaining) {
-                MessageFragment fragment = queue.poll();
-                totalLength += fragment.size();
-                totalQueueSize -= fragment.size();
-                fragments.add(fragment);
+            MessageFragment nextFragment = queue.poll();
+            int nextFragmentSize = nextFragment.size();
+            totalQueueSize -= nextFragmentSize;
+            if (nextFragmentSize <= spaceRemaining) {
+                totalLength += nextFragmentSize;
+                fragments.add(nextFragment);
             } else {
-                MessageFragment[] halves = queue.poll().split(spaceRemaining);
-                totalLength += halves[0].size();
+                MessageFragment[] halves = nextFragment.split(spaceRemaining);
                 fragments.add(halves[0]);
+                totalLength += halves[0].size();
                 queue.offerFirst(halves[1]);
+                totalQueueSize += halves[1].size();
+                System.out.println("queue +1= " + halves[1].size());
             }
+
+            testQueue();
         } while (!queue.isEmpty());
 
         byte[] packetBytes = new byte[8 + totalLength];
@@ -127,7 +141,7 @@ public class SendQueue {
             currentIdx += fragmentBytes.length;
         }
 
-//        System.out.println("packet leaving with " + packetBytes.length + " bytes of payload");
+        //        System.out.println("packet leaving with " + packetBytes.length + " bytes of payload");
         return new Packet(packetId, packetBytes);
     }
 

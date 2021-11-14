@@ -3,21 +3,48 @@ package cs451.uniform_reliable_broadcast;
 import cs451.base.BigEndianCoder;
 import cs451.base.FullAddress;
 import cs451.base.Pair;
+import cs451.message.PLMessage;
+import cs451.message.URBMessage;
 import cs451.perfect_links.PerfectLink;
 
 import java.net.DatagramSocket;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.PriorityBlockingQueue;
 import java.util.function.Consumer;
 
-class ReceivedMessage {
-    final String message;
+class AckCounter {
+    final URBMessage message;
     Set<Integer> acknowledged = new HashSet<>();
 
-    ReceivedMessage(String message) {
+    AckCounter(URBMessage message) {
         this.message = message;
+    }
+}
+
+class DeliveryQueue {
+    // FIFO enforcement
+    private int nextDeliveryId = 0;
+    private final Queue<URBMessage> queue = new PriorityBlockingQueue<>(100, Comparator.comparing(message -> message.messageId));
+    private final Consumer<URBMessage> deliverCallback;
+
+    DeliveryQueue(Consumer<URBMessage> deliverCallback) {
+        super();
+        this.deliverCallback = deliverCallback;
+    }
+
+    public synchronized void deliver(URBMessage message) {
+        if (message.messageId == nextDeliveryId) {
+            deliverCallback.accept(message);
+            nextDeliveryId++;
+            while (!queue.isEmpty() && queue.peek().messageId == nextDeliveryId) {
+                deliverCallback.accept(queue.poll());
+                nextDeliveryId++;
+            }
+        } else {
+            queue.offer(message);
+        }
     }
 }
 
@@ -40,35 +67,34 @@ public class URB {
     // TODO: benchmark whether waiting is really needed
     private final Queue<String> waiting = new LinkedBlockingQueue<>();
     // (urbMessageId, urbSourceId): processes that acknowledge
-    private final Map<Pair<Integer, Integer>, ReceivedMessage> received = new ConcurrentHashMap<>();
+    private final Map<Pair<Integer, Integer>, AckCounter> received = new ConcurrentHashMap<>();
+
+    // priority queues containing (urbMessageId, message) sorted by urbMessageId, messages waiting to be delivered in order, indexed by urbSourceId
+    private final Map<Integer, DeliveryQueue> deliveryQueues = new ConcurrentHashMap<>();
+
     // (urbMessageId, urbSourceId)
     private final Set<Pair<Integer, Integer>> delivered = Collections.newSetFromMap(new ConcurrentHashMap<>());
-    private int nextMessageId = 1; // acknowledgements have id 0
+    private int nextUrbMessageId = 0;
+
+    private final Consumer<URBMessage> deliverCallback;
 
     // allProcesses includes this process
-    public URB(int processId, Map<Integer, FullAddress> addresses, DatagramSocket socket, Consumer<String> deliverCallback) {
+    public URB(int processId, Map<Integer, FullAddress> addresses, DatagramSocket socket, Consumer<URBMessage> deliverCallback) {
         this.processId = processId;
         this.addresses = addresses;
         totalNumProcesses = addresses.size();
-//        otherAddresses = new FullAddress[allProcesses.size() - 1];
+        perfectLink = new PerfectLink(processId, addresses, socket, this::onPlDeliver);
+        this.deliverCallback = deliverCallback;
+    }
 
-//        int i = 0;
-//        for (Pair<Integer, FullAddress> pair : allProcesses) {
-//            Integer otherProcessId = pair.first;
-//            if (otherProcessId == processId) {
-//                continue;
-//            }
-//            otherAddresses[i++] = pair.second;
-//        }
+    private synchronized void onPlDeliver(PLMessage message) {
+        byte[] bytes = message.getTextBytes();
 
-        perfectLink = new PerfectLink(processId, addresses, socket, message -> {
-            byte[] bytes = message.getTextBytes();
-
-            // in this case sourceId refers to the process that sent
-            // this particular message while urbSourceId refers to the
-            // process that originally broadcast the message
-            int urbMessageId = BigEndianCoder.decodeInt(bytes, 0);
-            int urbSourceId = BigEndianCoder.decodeInt(bytes, 4);
+        // in this case sourceId refers to the process that sent
+        // this particular message while urbSourceId refers to the
+        // process that originally broadcast the message
+        int urbMessageId = BigEndianCoder.decodeInt(bytes, 0);
+        int urbSourceId = BigEndianCoder.decodeInt(bytes, 4);
 
 //            System.out.println("\n\n=========");
 //            System.out.println("message PL-delivered from " + message.sourceId + " to " + processId);
@@ -78,41 +104,42 @@ public class URB {
 //            System.out.println("urbSourceId:  " + urbSourceId);
 //            System.out.println("=========");
 
-            Pair<Integer, Integer> key = new Pair<>(urbMessageId, urbSourceId);
-            if (!delivered.contains(key)) {
-                boolean[] rebroadcast = {false};
+        Pair<Integer, Integer> key = new Pair<>(urbMessageId, urbSourceId);
+        if (!delivered.contains(key)) {
+            boolean[] rebroadcast = {false};
 
-                ReceivedMessage receivedMessage = received.computeIfAbsent(key, ignored -> {
+            AckCounter ackCounter = received.computeIfAbsent(key, ignored -> {
 //                    System.out.println("received new message");
-                    rebroadcast[0] = true;
-                    String text = new String(bytes, HEADER_SIZE, bytes.length - HEADER_SIZE);
-                    ReceivedMessage rm = new ReceivedMessage(text);
-                    rm.acknowledged.add(processId);
-                    return rm;
-                });
+                rebroadcast[0] = true;
+                String text = new String(bytes, HEADER_SIZE, bytes.length - HEADER_SIZE);
+                AckCounter counter = new AckCounter(new URBMessage(urbMessageId, urbSourceId, text));
+                counter.acknowledged.add(processId);
+                return counter;
+            });
 
-                receivedMessage.acknowledged.add(message.sourceId);
-                if (receivedMessage.acknowledged.size() >= totalNumProcesses / 2 + 1) {
+            ackCounter.acknowledged.add(message.sourceId);
+            if (ackCounter.acknowledged.size() >= totalNumProcesses / 2 + 1) {
 //                    System.out.println("50% + 1 acknowledged, delivering");
-                    received.remove(key);
-                    // broadcast next message in queue
-                    if (!waiting.isEmpty()) {
-                        String msg = waiting.poll();
-                        broadcast(msg);
-                    }
-                    delivered.add(key);
-                    deliverCallback.accept(receivedMessage.message);
+                received.remove(key);
+                // broadcast next message in queue
+                if (!waiting.isEmpty()) {
+                    String msg = waiting.poll();
+                    broadcast(msg);
                 }
-
-                // TODO: rebroadcast to everyone except the original sender and the current sender
-                //  for those two, just send an ack
-                // rebroadcast
-                if (rebroadcast[0]) {
-//                    System.out.println("rebroadcast");
-                    broadcastSend(message.getTextBytes());
-                }
+                delivered.add(key);
+                deliveryQueues
+                        .computeIfAbsent(urbSourceId, ignored -> new DeliveryQueue(deliverCallback))
+                        .deliver(ackCounter.message);
             }
-        });
+
+            // TODO: rebroadcast to everyone except the original sender and the current sender
+            //  for those two, just send an ack
+            // rebroadcast
+            if (rebroadcast[0]) {
+//                    System.out.println("rebroadcast");
+                broadcastSend(message.getTextBytes());
+            }
+        }
     }
 
     private void broadcastSend(byte[] bytes) {
@@ -130,16 +157,16 @@ public class URB {
             waiting.offer(msg);
         } else {
 //            System.out.println("broadcast");
-            int messageId = nextMessageId++;
+            int urbMessageId = nextUrbMessageId++;
             byte[] msgBytes = msg.getBytes();
             byte[] bytes = new byte[HEADER_SIZE + msgBytes.length];
-            BigEndianCoder.encodeInt(messageId, bytes, 0);
+            BigEndianCoder.encodeInt(urbMessageId, bytes, 0);
             BigEndianCoder.encodeInt(processId, bytes, 4);
             System.arraycopy(msgBytes, 0, bytes, HEADER_SIZE, msgBytes.length);
 
-            ReceivedMessage receivedMessage = new ReceivedMessage(msg);
-            receivedMessage.acknowledged.add(processId);
-            received.put(new Pair<>(messageId, processId), receivedMessage);
+            AckCounter ackCounter = new AckCounter(new URBMessage(urbMessageId, processId, msg));
+            ackCounter.acknowledged.add(processId);
+            received.put(new Pair<>(urbMessageId, processId), ackCounter);
 
             broadcastSend(bytes);
         }
