@@ -19,6 +19,10 @@ public abstract class Message {
         this.textBytes = textBytes;
     }
 
+    public Message(Message message) {
+        this(message.messageId, message.sourceId, message.getTextBytes());
+    }
+
     public String getText() {
         if (text == null) {
             text = new String(textBytes);

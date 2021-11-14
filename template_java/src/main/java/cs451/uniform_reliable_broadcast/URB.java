@@ -1,5 +1,6 @@
 package cs451.uniform_reliable_broadcast;
 
+import cs451.Constants;
 import cs451.base.BigEndianCoder;
 import cs451.base.FullAddress;
 import cs451.base.Pair;
@@ -23,31 +24,6 @@ class AckCounter {
     }
 }
 
-class DeliveryQueue {
-    // FIFO enforcement
-    private int nextDeliveryId = 0;
-    private final Queue<URBMessage> queue = new PriorityBlockingQueue<>(100, Comparator.comparing(message -> message.messageId));
-    private final Consumer<URBMessage> deliverCallback;
-
-    DeliveryQueue(Consumer<URBMessage> deliverCallback) {
-        super();
-        this.deliverCallback = deliverCallback;
-    }
-
-    public synchronized void deliver(URBMessage message) {
-        if (message.messageId == nextDeliveryId) {
-            deliverCallback.accept(message);
-            nextDeliveryId++;
-            while (!queue.isEmpty() && queue.peek().messageId == nextDeliveryId) {
-                deliverCallback.accept(queue.poll());
-                nextDeliveryId++;
-            }
-        } else {
-            queue.offer(message);
-        }
-    }
-}
-
 // URB messages are structured as follows:
 // - urbMessageId - 4 bytes
 // - urbSourceId  - 4 bytes
@@ -57,7 +33,6 @@ class DeliveryQueue {
 // by PerfectLink)
 public class URB {
     private static final int HEADER_SIZE = 8; // bytes
-    private static final int SEND_BATCH_SIZE = 1000;
 
     private final int processId;
     private final Map<Integer, FullAddress> addresses;
@@ -68,9 +43,6 @@ public class URB {
     private final Queue<String> waiting = new LinkedBlockingQueue<>();
     // (urbMessageId, urbSourceId): processes that acknowledge
     private final Map<Pair<Integer, Integer>, AckCounter> received = new ConcurrentHashMap<>();
-
-    // priority queues containing (urbMessageId, message) sorted by urbMessageId, messages waiting to be delivered in order, indexed by urbSourceId
-    private final Map<Integer, DeliveryQueue> deliveryQueues = new ConcurrentHashMap<>();
 
     // (urbMessageId, urbSourceId)
     private final Set<Pair<Integer, Integer>> delivered = Collections.newSetFromMap(new ConcurrentHashMap<>());
@@ -108,8 +80,9 @@ public class URB {
         if (!delivered.contains(key)) {
             boolean[] rebroadcast = {false};
 
+            System.out.println("URB RECEIVE " + urbMessageId + " FROM " + urbSourceId);
             AckCounter ackCounter = received.computeIfAbsent(key, ignored -> {
-//                    System.out.println("received new message");
+                System.out.println("> is new");
                 rebroadcast[0] = true;
                 String text = new String(bytes, HEADER_SIZE, bytes.length - HEADER_SIZE);
                 AckCounter counter = new AckCounter(new URBMessage(urbMessageId, urbSourceId, text));
@@ -119,6 +92,7 @@ public class URB {
 
             ackCounter.acknowledged.add(message.sourceId);
             if (ackCounter.acknowledged.size() >= totalNumProcesses / 2 + 1) {
+                System.out.println("> URB DELIVER");
 //                    System.out.println("50% + 1 acknowledged, delivering");
                 received.remove(key);
                 // broadcast next message in queue
@@ -127,9 +101,7 @@ public class URB {
                     broadcast(msg);
                 }
                 delivered.add(key);
-                deliveryQueues
-                        .computeIfAbsent(urbSourceId, ignored -> new DeliveryQueue(deliverCallback))
-                        .deliver(ackCounter.message);
+                deliverCallback.accept(ackCounter.message);
             }
 
             // TODO: rebroadcast to everyone except the original sender and the current sender
@@ -143,6 +115,10 @@ public class URB {
     }
 
     private void broadcastSend(byte[] bytes) {
+        int urbMessageId = BigEndianCoder.decodeInt(bytes, 0);
+        int urbSourceId = BigEndianCoder.decodeInt(bytes, 4);
+        System.out.println("URB SEND " + urbMessageId + " FROM " + urbSourceId);
+
         for (int pid : addresses.keySet()) {
             if (pid != processId) {
                 perfectLink.send(bytes, pid);
@@ -152,7 +128,7 @@ public class URB {
 
     public synchronized void broadcast(String msg) {
 //        System.out.println("try broadcast message: " + msg);
-        if (received.size() >= SEND_BATCH_SIZE) {
+        if (received.size() >= Constants.URB_SENDING_BATCH_SIZE) {
 //            System.out.println("enqueue");
             waiting.offer(msg);
         } else {

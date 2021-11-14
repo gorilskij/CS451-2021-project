@@ -1,6 +1,7 @@
 package cs451;
 
 import cs451.base.FullAddress;
+import cs451.fifo.FIFO;
 import cs451.perfect_links.PerfectLink;
 import cs451.uniform_reliable_broadcast.URB;
 
@@ -146,13 +147,18 @@ public class Main {
 
         long start = System.nanoTime();
 
-        String sendMessage = s10kb;
+        String sendMessage = "hi";
 
         int expectedMessages = numMessages * parser.hosts().size();
         System.out.println("Expecting " + expectedMessages + " messages");
         int[] totalMessages = new int[] {0};
-        URB urb = new URB(parser.myId(), addresses, socket, delivered -> {
+        FIFO fifo = new FIFO(parser.myId(), addresses, socket, delivered -> {
             eventHistory.logDelivery(delivered.sourceId, delivered.messageId);
+
+            if (!delivered.getText().equals(sendMessage)) {
+                System.out.println("wrong message");
+                System.exit(1);
+            }
 
             totalMessages[0] += 1;
             if (totalMessages[0] >= expectedMessages) {
@@ -168,15 +174,15 @@ public class Main {
             } else {
                 int tm = totalMessages[0];
                 if (tm % 1000 == 0
-                        || expectedMessages - tm < 1000 && tm % 100 == 0
-                        || expectedMessages - tm < 100) {
+//                        || expectedMessages - tm < 1000 && tm % 100 == 0
+                        || expectedMessages - tm < 2000) {
                     System.out.println("total: " + totalMessages[0]);
                 }
             }
         });
 
         for (int i = 0; i < numMessages; i++) {
-            urb.broadcast("" + i);
+            fifo.broadcast(sendMessage);
         }
     }
 

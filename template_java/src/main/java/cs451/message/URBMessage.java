@@ -8,4 +8,8 @@ public class URBMessage extends Message {
     public URBMessage(int messageId, int sourceId, byte[] textBytes) {
         super(messageId, sourceId, textBytes);
     }
+
+    public URBMessage(URBMessage message) {
+        super(message);
+    }
 }

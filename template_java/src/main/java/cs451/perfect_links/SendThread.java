@@ -1,5 +1,6 @@
 package cs451.perfect_links;
 
+import cs451.Constants;
 import cs451.base.Pair;
 
 import java.io.IOException;
@@ -13,13 +14,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 
 public class SendThread extends Thread {
-    private final int SENDING_BATCH_SIZE = 100;
-
     private final DatagramSocket socket;
 
     // contains (packetId, packet)
     private final Queue<Pair<Integer, DatagramPacket>> waitingPackets = new LinkedBlockingQueue<>();
-    private final Map<Integer, DatagramPacket> sendingPackets = new ConcurrentHashMap<>(SENDING_BATCH_SIZE);
+
+    private final Map<Integer, DatagramPacket> sendingPackets = new ConcurrentHashMap<>(Constants.PL_SENDING_BATCH_SIZE);
+
     // ids of packets that have been sent and successfully received
     private final Set<Integer> removed = new HashSet<>();
 
@@ -31,7 +32,7 @@ public class SendThread extends Thread {
     }
 
     public void send(int packetId, DatagramPacket packet) {
-        if (sendingPackets.size() < SENDING_BATCH_SIZE) {
+        if (sendingPackets.size() < Constants.PL_SENDING_BATCH_SIZE) {
             try {
                 socket.send(packet);
             } catch (IOException ignore) {

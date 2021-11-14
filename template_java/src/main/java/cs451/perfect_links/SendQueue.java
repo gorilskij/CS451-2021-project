@@ -40,10 +40,6 @@ public class SendQueue {
     }
 
     private synchronized void sendMessageFragment(MessageFragment fragment) {
-        if (fragment == null) {
-            throw new IllegalStateException("tried to sendMessageFragment(null)");
-        }
-
         queue.offer(fragment);
         totalQueueSize += fragment.size();
 
@@ -123,7 +119,7 @@ public class SendQueue {
                 totalLength += halves[0].size();
                 queue.offerFirst(halves[1]);
                 totalQueueSize += halves[1].size();
-                System.out.println("queue +1= " + halves[1].size());
+//                System.out.println("queue +1= " + halves[1].size());
             }
 
             testQueue();
