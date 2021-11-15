@@ -145,7 +145,8 @@ public class Main {
             throw new Error(e);
         }
 
-        long start = System.nanoTime();
+
+        long[] start = {-1};
 
         String sendMessage = "hi";
 
@@ -154,6 +155,10 @@ public class Main {
         int[] totalMessages = new int[] {0};
         FIFO fifo = new FIFO(parser.myId(), addresses, socket, delivered -> {
             eventHistory.logDelivery(delivered.sourceId, delivered.messageId);
+
+            if (start[0] < 0) {
+                start[0] = System.nanoTime();
+            }
 
             if (!delivered.getText().equals(sendMessage)) {
                 System.out.println("wrong message");
@@ -164,8 +169,8 @@ public class Main {
             if (totalMessages[0] >= expectedMessages) {
                 long end = System.nanoTime();
                 System.out.println("total number of messages received: " + totalMessages[0]);
-                System.out.println("time taken: " + (end - start) / 1_000_000 + "ms");
-                System.out.println("messages/s: " + ((long) (totalMessages[0] * 1e9) / (end - start)));
+                System.out.println("time taken: " + (end - start[0]) / 1_000_000 + "ms");
+                System.out.println("messages/s: " + ((long) (totalMessages[0] * 1e9) / (end - start[0])));
 
                 if (totalMessages[0] > expectedMessages) {
                     System.out.println("ERROR: DELIVERED MORE MESSAGES THAN EXPECTED");
@@ -181,6 +186,14 @@ public class Main {
             }
         });
 
+        System.out.println("sleeping");
+        try {
+            Thread.sleep(5000);
+        } catch (InterruptedException ignored) {
+            return;
+        }
+        System.out.println("done");
+
         for (int i = 0; i < numMessages; i++) {
             fifo.broadcast(sendMessage);
         }
@@ -195,7 +208,8 @@ public class Main {
                     "--id", "" + id,
                     "--hosts", "/Users/Gorilskij/Desktop/EPFL/Courses/DA/CS451-2021-project/template_java/hosts",
                     "--output", id + ".output",
-                    "/Users/Gorilskij/Desktop/EPFL/Courses/DA/CS451-2021-project/template_java/perfect-links.config"
+//                    "/Users/Gorilskij/Desktop/EPFL/Courses/DA/CS451-2021-project/template_java/perfect-links.config"
+                    "/Users/Gorilskij/Desktop/EPFL/Courses/DA/CS451-2021-project/template_java/fifo.config"
             };
         }
 
@@ -246,7 +260,7 @@ public class Main {
             }
         }
 
-        runPerfectLinksTest(parser, myPort, addresses);
-//        runFifoTest(parser, myPort, addresses);
+//        runPerfectLinksTest(parser, myPort, addresses);
+        runFifoTest(parser, myPort, addresses);
     }
 }

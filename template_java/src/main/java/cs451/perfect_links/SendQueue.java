@@ -43,7 +43,7 @@ public class SendQueue {
         queue.offer(fragment);
         totalQueueSize += fragment.size();
 
-        testQueue();
+//        testQueue();
 
         Packet maybePacket = tryMakePacket();
         if (maybePacket != null) {
@@ -81,15 +81,15 @@ public class SendQueue {
         flush();
     }
 
-    private void testQueue() {
-        int realQueueSize = 0;
-        for (MessageFragment f : queue) {
-            realQueueSize += f.size();
-        }
-        if (realQueueSize != totalQueueSize) {
-            throw new IllegalStateException("real: " + realQueueSize + ", total: " + totalQueueSize);
-        }
-    }
+//    private void testQueue() {
+//        int realQueueSize = 0;
+//        for (MessageFragment f : queue) {
+//            realQueueSize += f.size();
+//        }
+//        if (realQueueSize != totalQueueSize) {
+//            throw new IllegalStateException("real: " + realQueueSize + ", total: " + totalQueueSize);
+//        }
+//    }
 
     // makes a packet even if it would be underfilled
     // only returns null if there are no fragments at all
@@ -122,7 +122,7 @@ public class SendQueue {
 //                System.out.println("queue +1= " + halves[1].size());
             }
 
-            testQueue();
+//            testQueue();
         } while (!queue.isEmpty());
 
         byte[] packetBytes = new byte[8 + totalLength];

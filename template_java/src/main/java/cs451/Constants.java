@@ -23,5 +23,5 @@ public class Constants {
 
     // how many messages are being sent at a time for each protocol
     public static final int PL_SENDING_BATCH_SIZE = 100;
-    public static final int URB_SENDING_BATCH_SIZE = 100; // also applies to FIFO
+    public static final int URB_SENDING_BATCH_SIZE = 1000; // also applies to FIFO
 }

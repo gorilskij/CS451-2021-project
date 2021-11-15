@@ -6,20 +6,14 @@ import cs451.base.Pair;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Queue;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 
 public class SendThread extends Thread {
     private final DatagramSocket socket;
 
-    // contains (packetId, packet)
-    private final Queue<Pair<Integer, DatagramPacket>> waitingPackets = new LinkedBlockingQueue<>();
-
-    private final Map<Integer, DatagramPacket> sendingPackets = new ConcurrentHashMap<>(Constants.PL_SENDING_BATCH_SIZE);
+    private final Map<Integer, DatagramPacket> sendingPackets = new LinkedHashMap<>();
 
     // ids of packets that have been sent and successfully received
     private final Set<Integer> removed = new HashSet<>();
@@ -32,14 +26,12 @@ public class SendThread extends Thread {
     }
 
     public void send(int packetId, DatagramPacket packet) {
-        if (sendingPackets.size() < Constants.PL_SENDING_BATCH_SIZE) {
-            try {
-                socket.send(packet);
-            } catch (IOException ignore) {
-            }
+        try {
+            socket.send(packet);
+        } catch (IOException ignore) {
+        }
+        synchronized (sendingPackets) {
             sendingPackets.put(packetId, packet);
-        } else {
-            waitingPackets.offer(new Pair<>(packetId, packet));
         }
     }
 
@@ -53,28 +45,22 @@ public class SendThread extends Thread {
         //  condition the rest of the method on the result of removing from sendingPackets,
         //  essentially assume that an ack will never arrive for a message that wasn't sent
         if (removed.add(packetId)) {
-            DatagramPacket removedPacket = sendingPackets.remove(packetId);
+            DatagramPacket removedPacket;
+            synchronized (sendingPackets) {
+                removedPacket = sendingPackets.remove(packetId);
+            }
             if (removedPacket == null) {
                 throw new IllegalStateException(
                         "sender received an acknowledge command for a packet that has never existed: " + packetId
                 );
-            }
-
-            // put a packet into the sending batch and send it in the process
-            Pair<Integer, DatagramPacket> pair = waitingPackets.poll();
-            if (pair != null) {
-                try {
-                    socket.send(pair.second);
-                } catch (IOException ignored) {
-                }
-                sendingPackets.put(pair.first, pair.second);
             }
         }
     }
 
     @Override
     public void run() {
-        while (true) {
+        ArrayList<DatagramPacket> send = new ArrayList<>();
+        for (int iteration = 0;; iteration++) {
             try {
                 // TODO: make this variable (based on what?)
                 //  in effect, the speed decreases towards the end of transmission
@@ -86,13 +72,38 @@ public class SendThread extends Thread {
 
             awakenSenders.run();
 
-            if (isInterrupted()) {
-                if (waitingPackets.isEmpty() && sendingPackets.isEmpty()) {
-                    break;
+            synchronized (sendingPackets) {
+                if (sendingPackets.isEmpty()) {
+                    if (isInterrupted()) {
+                        break;
+                    } else {
+                        continue;
+                    }
+                }
+
+                int limit;
+                // TODO: spread it out
+                if (iteration % 10 == 0) {
+                    // every 100ms, resend all
+                    limit = -1;
+                } else {
+                    limit = Constants.PL_SENDING_BATCH_SIZE;
+                }
+                send.clear();
+                int i = 0;
+                for (DatagramPacket packet : sendingPackets.values()) {
+                    if (limit > -1) {
+                        if (i >= limit) {
+                            break;
+                        }
+                        i++;
+                    }
+
+                    send.add(packet);
                 }
             }
 
-            for (DatagramPacket packet : sendingPackets.values()) {
+            for (DatagramPacket packet : send) {
                 try {
                     socket.send(packet);
                 } catch (IOException ignored) {
