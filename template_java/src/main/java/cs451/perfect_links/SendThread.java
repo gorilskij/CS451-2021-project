@@ -59,13 +59,14 @@ public class SendThread extends Thread {
 
     @Override
     public void run() {
+        int batch = 0;
         ArrayList<DatagramPacket> send = new ArrayList<>();
         for (int iteration = 0;; iteration++) {
             try {
                 // TODO: make this variable (based on what?)
                 //  in effect, the speed decreases towards the end of transmission
                 //  why..?
-                Thread.sleep(10);
+                Thread.sleep(1);
             } catch (InterruptedException e) {
                 interrupt();
             }
@@ -81,25 +82,24 @@ public class SendThread extends Thread {
                     }
                 }
 
-                int limit;
-                // TODO: spread it out
-                if (iteration % 10 == 0) {
-                    // every 100ms, resend all
-                    limit = -1;
-                } else {
-                    limit = Constants.PL_SENDING_BATCH_SIZE;
+                batch++;
+                int batchStart = batch * Constants.PL_SENDING_BATCH_SIZE;
+                if (batchStart > sendingPackets.size()) {
+                    batch = 0;
+                    batchStart = 0;
                 }
+                int batchEnd = batchStart + Constants.PL_SENDING_BATCH_SIZE;
+
                 send.clear();
                 int i = 0;
                 for (DatagramPacket packet : sendingPackets.values()) {
-                    if (limit > -1) {
-                        if (i >= limit) {
+                    if (i >= batchStart) {
+                        send.add(packet);
+                        if (i >= batchEnd) {
                             break;
                         }
-                        i++;
                     }
-
-                    send.add(packet);
+                    i++;
                 }
             }
 
