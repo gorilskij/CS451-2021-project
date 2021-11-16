@@ -89,9 +89,7 @@ public class Main {
         PerfectLink perfectLink = new PerfectLink(parser.myId(), addresses, socket, delivered -> {
             eventHistory.logDelivery(delivered.sourceId, delivered.messageId);
 
-//            if (!delivered.getText().equals(s100kb)) {
-//                throw new IllegalStateException("Bad message received");
-//            }
+//            System.out.println("deliver " + delivered.getText());
 
             // for debug
             totalMessages[0] += 1;
@@ -260,7 +258,7 @@ public class Main {
             }
         }
 
-//        runPerfectLinksTest(parser, myPort, addresses);
-        runFifoTest(parser, myPort, addresses);
+        runPerfectLinksTest(parser, myPort, addresses);
+//        runFifoTest(parser, myPort, addresses);
     }
 }

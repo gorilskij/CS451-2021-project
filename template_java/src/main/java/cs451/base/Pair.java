@@ -15,12 +15,18 @@ public class Pair<T, U> {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        Pair<T, U> that = (Pair<T, U>) o;
-        return first.equals(that.first) && second.equals(that.second);
+        Pair<?, ?> pair = (Pair<?, ?>) o;
+        return Objects.equals(first, pair.first) && Objects.equals(second, pair.second);
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(first, second);
+    }
+
+    @Override
+    public String toString() {
+        return "Pair(" + first +
+                ", " + second + ')';
     }
 }

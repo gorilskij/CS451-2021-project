@@ -5,6 +5,7 @@ import cs451.base.Pair;
 import cs451.message.PLMessage;
 
 import java.util.HashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 /**
@@ -21,7 +22,10 @@ public class Reconstructor {
         this.deliverCallback = deliverCallback;
     }
 
+    private static final AtomicInteger counter = new AtomicInteger(0);
     public void add(byte[] packetData, int packetLength) {
+        System.out.println("add call number: " + counter.incrementAndGet());
+
         int sourceId = BigEndianCoder.decodeInt(packetData, 4);
 
         // skip packet metadata

@@ -66,7 +66,7 @@ public class SendThread extends Thread {
                 // TODO: make this variable (based on what?)
                 //  in effect, the speed decreases towards the end of transmission
                 //  why..?
-                Thread.sleep(1);
+                Thread.sleep(100);
             } catch (InterruptedException e) {
                 interrupt();
             }
@@ -89,6 +89,8 @@ public class SendThread extends Thread {
                     batchStart = 0;
                 }
                 int batchEnd = batchStart + Constants.PL_SENDING_BATCH_SIZE;
+
+//                System.out.println("sending batch " + batchStart + "-" + batchEnd);
 
                 send.clear();
                 int i = 0;
