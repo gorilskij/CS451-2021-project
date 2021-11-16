@@ -32,7 +32,7 @@ public class PerfectLink {
 
         sendThread = new SendThread(socket, () -> {
             for (SendQueue queue : sendQueues.values()) {
-                queue.awaken();
+                queue.flush();
             }
         });
 

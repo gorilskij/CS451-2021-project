@@ -52,6 +52,21 @@ public class Main {
         });
     }
 
+    private static void sleepUntilNextNSecondMark(int n) {
+        long currentTime = System.nanoTime();
+        double interval = n * 1e9;
+        double time = currentTime;
+        time += interval;
+        time = Math.ceil(time / interval) * interval;
+        long endSleepTime = (long) time;
+        try {
+            System.out.println("sleeping");
+            Thread.sleep((endSleepTime - currentTime) / 1_000_000);
+            System.out.println("done");
+        } catch (InterruptedException ignored) {
+        }
+    }
+
     private static void runPerfectLinksTest(Parser parser, int myPort, Map<Integer, FullAddress> addresses) {
         System.out.println("Doing some initialization\n");
         int numMessages;
@@ -184,13 +199,7 @@ public class Main {
             }
         });
 
-        System.out.println("sleeping");
-        try {
-            Thread.sleep(5000);
-        } catch (InterruptedException ignored) {
-            return;
-        }
-        System.out.println("done");
+        sleepUntilNextNSecondMark(5);
 
         for (int i = 0; i < numMessages; i++) {
             fifo.broadcast(sendMessage);

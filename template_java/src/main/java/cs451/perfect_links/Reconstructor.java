@@ -5,6 +5,8 @@ import cs451.base.Pair;
 import cs451.message.PLMessage;
 
 import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
@@ -15,7 +17,7 @@ import java.util.function.Consumer;
 public class Reconstructor {
     private final Consumer<PLMessage> deliverCallback;
     // indexed by (messageId, sourceId)
-    private final HashMap<Pair<Integer, Integer>, MessageBuilder> builders = new HashMap<>();
+    private final Map<Pair<Integer, Integer>, MessageBuilder> builders = new ConcurrentHashMap<>();
     // contains (messageId, sourceId)
 
     public Reconstructor(Consumer<PLMessage> deliverCallback) {

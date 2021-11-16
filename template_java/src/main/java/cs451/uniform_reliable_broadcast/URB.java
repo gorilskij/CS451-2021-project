@@ -68,14 +68,6 @@ public class URB {
         int urbMessageId = BigEndianCoder.decodeInt(bytes, 0);
         int urbSourceId = BigEndianCoder.decodeInt(bytes, 4);
 
-//            System.out.println("\n\n=========");
-//            System.out.println("message PL-delivered from " + message.sourceId + " to " + processId);
-//            String text1 = new String(bytes, HEADER_SIZE, bytes.length - HEADER_SIZE);
-//            System.out.println("text: \"" + text1 + "\"");
-//            System.out.println("urbMessageId: " + urbMessageId);
-//            System.out.println("urbSourceId:  " + urbSourceId);
-//            System.out.println("=========");
-
         Pair<Integer, Integer> key = new Pair<>(urbMessageId, urbSourceId);
         if (!delivered.contains(key)) {
             boolean[] rebroadcast = {false};
@@ -91,16 +83,19 @@ public class URB {
             });
 
             ackCounter.acknowledged.add(message.sourceId);
-            if (ackCounter.acknowledged.size() >= totalNumProcesses / 2 + 1) {
+            if (ackCounter.acknowledged.size() > totalNumProcesses / 2) {
 //                System.out.println("> URB DELIVER");
 //                    System.out.println("50% + 1 acknowledged, delivering");
                 received.remove(key);
+
                 // broadcast next message in queue
-                if (!waiting.isEmpty()) {
-                    String msg = waiting.poll();
+                String msg = waiting.poll();
+                if (msg != null) {
                     broadcast(msg);
                 }
+
                 delivered.add(key);
+                System.out.println("URB DELIVER " + urbMessageId + " from " + urbSourceId);
                 deliverCallback.accept(ackCounter.message);
             }
 
@@ -108,7 +103,6 @@ public class URB {
             //  for those two, just send an ack
             // rebroadcast
             if (rebroadcast[0]) {
-//                    System.out.println("rebroadcast");
                 broadcastSend(message.getTextBytes());
             }
         }
@@ -117,7 +111,7 @@ public class URB {
     private void broadcastSend(byte[] bytes) {
         int urbMessageId = BigEndianCoder.decodeInt(bytes, 0);
         int urbSourceId = BigEndianCoder.decodeInt(bytes, 4);
-//        System.out.println("URB SEND " + urbMessageId + " FROM " + urbSourceId);
+        System.out.println("URB SEND " + urbMessageId + " FROM " + urbSourceId);
 
         for (int pid : addresses.keySet()) {
             if (pid != processId) {

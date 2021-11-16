@@ -57,22 +57,18 @@ public class SendQueue {
         ackQueue.offer(packetId);
         Packet maybePacket = tryMakeAckPacket();
         if (maybePacket != null) {
-            sendThread.sendAckPacket(maybePacket, destination);
-        }
-    }
-
-    private void flush() {
-        Packet maybePacket;
-        while ((maybePacket = forceMakeAckPacket()) != null) {
-            sendThread.sendAckPacket(maybePacket, destination);
-        }
-        while ((maybePacket = forceMakePacket()) != null) {
             sendThread.sendPacket(maybePacket, destination);
         }
     }
 
-    public void awaken() {
-        flush();
+    public void flush() {
+        Packet maybePacket;
+        while ((maybePacket = forceMakeAckPacket()) != null) {
+            sendThread.sendPacket(maybePacket, destination);
+        }
+        while ((maybePacket = forceMakePacket()) != null) {
+            sendThread.sendPacket(maybePacket, destination);
+        }
     }
 
 //    private void testQueue() {
