@@ -1,18 +1,18 @@
 package cs451.perfect_links;
 
 import cs451.Constants;
-import cs451.base.Pair;
+import cs451.base.BigEndianCoder;
+import cs451.base.FullAddress;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.LinkedBlockingQueue;
 
 public class SendThread extends Thread {
     private final DatagramSocket socket;
 
+    // TODO: convert back to ConcurrentHashMap
     private final Map<Integer, DatagramPacket> sendingPackets = new LinkedHashMap<>();
 
     // ids of packets that have been sent and successfully received
@@ -25,13 +25,34 @@ public class SendThread extends Thread {
         this.awakenSenders = awakenSenders;
     }
 
-    public void send(int packetId, DatagramPacket packet) {
+    private DatagramPacket makeUdpPacket(Packet packet, FullAddress destination) {
+        return new DatagramPacket(
+                packet.data,
+                packet.data.length,
+                destination.address,
+                destination.port
+        );
+    }
+
+    public void sendPacket(Packet packet, FullAddress destination) {
+        if (packet.packetId == 0) {
+            throw new IllegalStateException("tried to send ack packet using regular mechanism");
+        }
+        DatagramPacket udpPacket = makeUdpPacket(packet, destination);
         try {
-            socket.send(packet);
+            socket.send(udpPacket);
         } catch (IOException ignore) {
         }
         synchronized (sendingPackets) {
-            sendingPackets.put(packetId, packet);
+            sendingPackets.put(packet.packetId, udpPacket);
+        }
+    }
+
+    public void sendAckPacket(Packet packet, FullAddress destination) {
+        DatagramPacket udpPacket = makeUdpPacket(packet, destination);
+        try {
+            socket.send(udpPacket);
+        } catch (IOException ignore) {
         }
     }
 
@@ -66,7 +87,7 @@ public class SendThread extends Thread {
                 // TODO: make this variable (based on what?)
                 //  in effect, the speed decreases towards the end of transmission
                 //  why..?
-                Thread.sleep(100);
+                Thread.sleep(Constants.PL_SENDING_INTERVAL);
             } catch (InterruptedException e) {
                 interrupt();
             }
@@ -74,6 +95,15 @@ public class SendThread extends Thread {
             awakenSenders.run();
 
             synchronized (sendingPackets) {
+//                System.out.println("qsize: " + sendingPackets.size());
+                if (sendingPackets.size() == 1) {
+                    for (DatagramPacket p : sendingPackets.values()) {
+                        int id = BigEndianCoder.decodeInt(p.getData(), 0);
+                        int s = BigEndianCoder.decodeInt(p.getData(), 4);
+//                        System.out.println("PACKET " + id + " from " + s);
+                    }
+                }
+
                 if (sendingPackets.isEmpty()) {
                     if (isInterrupted()) {
                         break;
@@ -89,8 +119,7 @@ public class SendThread extends Thread {
                     batchStart = 0;
                 }
                 int batchEnd = batchStart + Constants.PL_SENDING_BATCH_SIZE;
-
-//                System.out.println("sending batch " + batchStart + "-" + batchEnd);
+//                System.out.println("sending batch [" + batchStart + ", " + batchEnd + ")");
 
                 send.clear();
                 int i = 0;

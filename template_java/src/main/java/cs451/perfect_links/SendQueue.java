@@ -33,12 +33,6 @@ public class SendQueue {
         this.sendThread = sendThread;
     }
 
-    private void sendPacket(Packet packet) {
-//        System.out.println("packet departing with " + packet.data.length + " bytes");
-        DatagramPacket udpPacket = new DatagramPacket(packet.data, packet.data.length, destination.address, destination.port);
-        sendThread.send(packet.packetId, udpPacket);
-    }
-
     private synchronized void sendMessageFragment(MessageFragment fragment) {
         queue.offer(fragment);
         totalQueueSize += fragment.size();
@@ -47,7 +41,7 @@ public class SendQueue {
 
         Packet maybePacket = tryMakePacket();
         if (maybePacket != null) {
-            sendPacket(maybePacket);
+            sendThread.sendPacket(maybePacket, destination);
         }
     }
 
@@ -63,17 +57,17 @@ public class SendQueue {
         ackQueue.offer(packetId);
         Packet maybePacket = tryMakeAckPacket();
         if (maybePacket != null) {
-            sendPacket(maybePacket);
+            sendThread.sendAckPacket(maybePacket, destination);
         }
     }
 
     private void flush() {
         Packet maybePacket;
         while ((maybePacket = forceMakeAckPacket()) != null) {
-            sendPacket(maybePacket);
+            sendThread.sendAckPacket(maybePacket, destination);
         }
         while ((maybePacket = forceMakePacket()) != null) {
-            sendPacket(maybePacket);
+            sendThread.sendPacket(maybePacket, destination);
         }
     }
 

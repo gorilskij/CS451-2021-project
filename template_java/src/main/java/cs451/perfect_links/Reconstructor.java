@@ -22,9 +22,9 @@ public class Reconstructor {
         this.deliverCallback = deliverCallback;
     }
 
-    private static final AtomicInteger counter = new AtomicInteger(0);
+//    private static final AtomicInteger counter = new AtomicInteger(0);
     public void add(byte[] packetData, int packetLength) {
-        System.out.println("add call number: " + counter.incrementAndGet());
+//        System.out.println("add call number: " + counter.incrementAndGet());
 
         int sourceId = BigEndianCoder.decodeInt(packetData, 4);
 

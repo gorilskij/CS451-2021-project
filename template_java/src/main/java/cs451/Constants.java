@@ -21,7 +21,11 @@ public class Constants {
     // maximum size of a packet in bytes including metadata
     public static final int MAX_PACKET_SIZE = 65_000;
 
-    // how many messages are being sent at a time for each protocol
-    public static final int PL_SENDING_BATCH_SIZE = 10;
+
+    // perfect links parameters
+    public static final int PL_SENDING_BATCH_SIZE = 500;
+    public static final int PL_SENDING_INTERVAL = 10; // ms
+
+    // uniform reliable broadcast parameters
     public static final int URB_SENDING_BATCH_SIZE = 10; // also applies to FIFO
 }
