@@ -16,13 +16,12 @@ import static java.util.concurrent.TimeUnit.*;
 public class SendThread {
     private final DatagramSocket socket;
 
-    // TODO: convert back to ConcurrentHashMap
-    private final Map<Integer, DatagramPacket> sendingPackets = new LinkedHashMap<>();
+    private final Map<Integer, DatagramPacket> sendingPackets = new ConcurrentHashMap<>();
 
     // ids of packets that have been sent and successfully received
     private final Set<Integer> removed = new HashSet<>();
 
-    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(Constants.PL_NUM_SENDER_THREADS);
     private ScheduledFuture<?> taskHandle = null;
 
     private final Runnable awakenSenders;
@@ -63,9 +62,9 @@ public class SendThread {
             socket.send(udpPacket);
         } catch (IOException ignore) {
         }
-        synchronized (sendingPackets) {
-            sendingPackets.put(packet.packetId, udpPacket);
-        }
+//        synchronized (sendingPackets) {
+        sendingPackets.put(packet.packetId, udpPacket);
+//        }
     }
 
     public void sendAckPacket(Packet packet, FullAddress destination) {
@@ -87,9 +86,9 @@ public class SendThread {
         //  essentially assume that an ack will never arrive for a message that wasn't sent
         if (removed.add(packetId)) {
             DatagramPacket removedPacket;
-            synchronized (sendingPackets) {
-                removedPacket = sendingPackets.remove(packetId);
-            }
+//            synchronized (sendingPackets) {
+            removedPacket = sendingPackets.remove(packetId);
+//            }
             if (removedPacket == null) {
                 throw new IllegalStateException(
                         "sender received an acknowledge command for a packet that has never existed: " + packetId
@@ -105,40 +104,28 @@ public class SendThread {
         // TODO: decouple this
         awakenSenders.run();
 
-        synchronized (sendingPackets) {
-//                System.out.println("qsize: " + sendingPackets.size());
-            if (sendingPackets.size() == 1) {
-                for (DatagramPacket p : sendingPackets.values()) {
-                    int id = BigEndianCoder.decodeInt(p.getData(), 0);
-                    int s = BigEndianCoder.decodeInt(p.getData(), 4);
-//                        System.out.println("PACKET " + id + " from " + s);
+        if (sendingPackets.isEmpty()) {
+            return;
+        }
+
+        int currentBatch = batch.getAndIncrement();
+        int batchStart = currentBatch * Constants.PL_SENDING_BATCH_SIZE;
+        if (batchStart > sendingPackets.size()) {
+            batch.set(0);
+            batchStart = 0;
+        }
+        int batchEnd = batchStart + Constants.PL_SENDING_BATCH_SIZE;
+
+        send.clear();
+        int i = 0;
+        for (DatagramPacket packet : sendingPackets.values()) {
+            if (i >= batchStart) {
+                send.add(packet);
+                if (i >= batchEnd) {
+                    break;
                 }
             }
-
-            if (sendingPackets.isEmpty()) {
-                return;
-            }
-
-            int currentBatch = batch.getAndIncrement();
-            int batchStart = currentBatch * Constants.PL_SENDING_BATCH_SIZE;
-            if (batchStart > sendingPackets.size()) {
-                currentBatch = 0;
-                batchStart = 0;
-            }
-            int batchEnd = batchStart + Constants.PL_SENDING_BATCH_SIZE;
-//                System.out.println("sending batch [" + batchStart + ", " + batchEnd + ")");
-
-            send.clear();
-            int i = 0;
-            for (DatagramPacket packet : sendingPackets.values()) {
-                if (i >= batchStart) {
-                    send.add(packet);
-                    if (i >= batchEnd) {
-                        break;
-                    }
-                }
-                i++;
-            }
+            i++;
         }
 
         for (DatagramPacket packet : send) {

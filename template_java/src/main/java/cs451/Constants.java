@@ -23,8 +23,9 @@ public class Constants {
 
 
     // perfect links parameters
+    public static final int PL_NUM_SENDER_THREADS = 2;
+    public static final int PL_SENDING_INTERVAL = 1; // ms
     public static final int PL_SENDING_BATCH_SIZE = 500;
-    public static final int PL_SENDING_INTERVAL = 10; // ms
 
     // uniform reliable broadcast parameters
     public static final int URB_SENDING_BATCH_SIZE = 10; // also applies to FIFO
