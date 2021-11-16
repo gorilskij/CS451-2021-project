@@ -81,11 +81,6 @@ public class PerfectLink {
         receiveThread.interrupt();
 
         try {
-            sendThread.join();
-        } catch (InterruptedException ignore) {
-        }
-
-        try {
             receiveThread.join();
         } catch (InterruptedException ignore) {
         }
