@@ -148,9 +148,8 @@ public class SendQueue {
         return new Packet(bytes);
     }
 
-    private static final int MIN_ACKS_PER_PACKET = 100;
     private synchronized Packet tryMakeAckPacket() {
-        if (ackQueue.size() >= MIN_ACKS_PER_PACKET) {
+        if (ackQueue.size() >= Constants.PL_MIN_ACKS_PER_PACKET) {
             return forceMakeAckPacket();
         }
         return null;
