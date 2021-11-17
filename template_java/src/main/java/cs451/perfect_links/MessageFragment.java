@@ -20,10 +20,6 @@ public class MessageFragment {
         this.data = data;
     }
 
-    MessageFragment(int messageId, String text) {
-        this(messageId, 0, true, text.getBytes());
-    }
-
     MessageFragment(int messageId, byte[] textBytes) {
         this(messageId, 0, true, textBytes);
     }

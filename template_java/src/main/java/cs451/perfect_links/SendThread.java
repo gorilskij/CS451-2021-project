@@ -42,8 +42,8 @@ public class SendThread {
 
     private DatagramPacket makeUdpPacket(Packet packet, FullAddress destination) {
         return new DatagramPacket(
-                packet.data,
-                packet.data.length,
+                packet.bytes,
+                packet.bytes.length,
                 destination.address,
                 destination.port
         );
@@ -51,26 +51,19 @@ public class SendThread {
 
     public void sendPacket(Packet packet, FullAddress destination) {
         DatagramPacket udpPacket = makeUdpPacket(packet, destination);
-        try {
-            socket.send(udpPacket);
-        } catch (IOException ignore) {
-        }
 
         if (packet.packetId != 0) {
             // for non-ack packets
             sendingPackets.put(packet.packetId, udpPacket);
         }
+
+        try {
+            socket.send(udpPacket);
+        } catch (IOException ignore) {
+        }
     }
 
-    // TODO: package acks together with regular messages, give them priority
     public void acknowledge(int packetId) {
-        if (packetId == 0) {
-            throw new IllegalStateException("tried to acknowledge packet 0");
-        }
-
-        // TODO get rid of purely safety-oriented duplicate functionality of remove,
-        //  condition the rest of the method on the result of removing from sendingPackets,
-        //  essentially assume that an ack will never arrive for a message that wasn't sent
         sendingPackets.remove(packetId);
     }
 
@@ -85,25 +78,22 @@ public class SendThread {
 
         int currentBatch = batch.getAndIncrement();
         int batchStart = currentBatch * Constants.PL_SENDING_BATCH_SIZE;
-        if (batchStart > sendingPackets.size()) {
+        if (batchStart >= sendingPackets.size()) {
             batch.set(0);
             batchStart = 0;
         }
         int batchEnd = batchStart + Constants.PL_SENDING_BATCH_SIZE;
 
-        int i = 0;
-        for (DatagramPacket packet : sendingPackets.values()) {
-            if (i >= batchStart) {
-                if (i >= batchEnd) {
-                    break;
-                }
-
-                try {
-                    socket.send(packet);
-                } catch (IOException ignored) {
-                }
-            }
-            i++;
-        }
+        sendingPackets
+                .values()
+                .stream()
+                .skip(batchStart)
+                .limit(batchEnd)
+                .forEach(packet -> {
+                    try {
+                        socket.send(packet);
+                    } catch (IOException ignored) {
+                    }
+                });
     }
 }

@@ -24,10 +24,6 @@ public class SendQueue {
     private int nextPacketId = 1; // 0 is used to identify ack packets
 
     public SendQueue(FullAddress destination, int sourceId, SendThread sendThread) {
-        if (destination == null) {
-            throw new IllegalArgumentException("destination is null");
-        }
-
         this.destination = destination;
         this.sourceId = sourceId;
         this.sendThread = sendThread;
@@ -43,10 +39,6 @@ public class SendQueue {
         if (maybePacket != null) {
             sendThread.sendPacket(maybePacket, destination);
         }
-    }
-
-    public void send(int messageId, String text) {
-        sendMessageFragment(new MessageFragment(messageId, text));
     }
 
     public void send(int messageId, byte[] textBytes) {
@@ -127,8 +119,7 @@ public class SendQueue {
             currentIdx += fragmentBytes.length;
         }
 
-        //        System.out.println("packet leaving with " + packetBytes.length + " bytes of payload");
-        return new Packet(packetId, packetBytes);
+        return new Packet(packetBytes);
     }
 
     // only makes a packet if there are enough fragments for a full one,
@@ -154,7 +145,7 @@ public class SendQueue {
         for (int i = 0; i < takeAcks; i += 1) {
             BigEndianCoder.encodeInt(ackQueue.poll(), bytes, i * 4 + 12);
         }
-        return new Packet(0, bytes);
+        return new Packet(bytes);
     }
 
     private static final int MIN_ACKS_PER_PACKET = 100;

@@ -6,6 +6,7 @@ import cs451.base.Pair;
 import cs451.message.PLMessage;
 
 import java.net.DatagramSocket;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -72,10 +73,7 @@ public class PerfectLink {
     }
 
     public void send(String msg, Integer processId) {
-        executor.submit(() -> {
-            int messageId = nextMessageId.getAndIncrement();
-            getSendQueueFor(processId).send(messageId, msg);
-        });
+        send(msg.getBytes(), processId);
     }
 
     public void send(byte[] msgBytes, Integer processId) {

@@ -18,12 +18,14 @@ public class MessageBuilder {
         this.sourceId = sourceId;
     }
 
-    public void add(MessageFragment fragment) {
+    public MessageBuilder add(MessageFragment fragment) {
         fragments.put(fragment.fragmentIdx, fragment);
 
         if (fragment.isLast) {
             expectedFragments = fragment.fragmentIdx + 1;
         }
+
+        return this;
     }
 
     // returns null if not enough fragments are present yet
