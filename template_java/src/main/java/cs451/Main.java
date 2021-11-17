@@ -173,10 +173,10 @@ public class Main {
                 start[0] = System.nanoTime();
             }
 
-            if (!delivered.getText().equals(sendMessage)) {
-                System.out.println("wrong message");
-                System.exit(1);
-            }
+//            if (!delivered.getText().equals(sendMessage)) {
+//                System.out.println("wrong message");
+//                System.exit(1);
+//            }
 
             totalMessages[0] += 1;
             if (totalMessages[0] >= expectedMessages) {
@@ -202,7 +202,8 @@ public class Main {
         sleepUntilNextNSecondMark(5);
 
         for (int i = 0; i < numMessages; i++) {
-            fifo.broadcast(sendMessage);
+//            fifo.broadcast(sendMessage);
+            fifo.broadcast("" + i);
         }
     }
 
@@ -267,7 +268,7 @@ public class Main {
             }
         }
 
-        runPerfectLinksTest(parser, myPort, addresses);
-//        runFifoTest(parser, myPort, addresses);
+//        runPerfectLinksTest(parser, myPort, addresses);
+        runFifoTest(parser, myPort, addresses);
     }
 }

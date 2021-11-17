@@ -29,5 +29,5 @@ public class Constants {
     public static final int PL_NUM_RECEIVER_THREADS = 2;
 
     // uniform reliable broadcast parameters
-    public static final int URB_SENDING_BATCH_SIZE = 10; // also applies to FIFO
+    public static final int URB_SENDING_BATCH_SIZE = 2; // also applies to FIFO
 }

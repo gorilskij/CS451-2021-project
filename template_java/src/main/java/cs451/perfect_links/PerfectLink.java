@@ -8,6 +8,9 @@ import cs451.message.PLMessage;
 import java.net.DatagramSocket;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 public class PerfectLink {
@@ -17,13 +20,15 @@ public class PerfectLink {
     // *** sending ***
     private final Map<Integer, SendQueue> sendQueues = new ConcurrentHashMap<>();
     private final SendThread sendThread;
-    private int nextMessageId = 1;
+    private final AtomicInteger nextMessageId = new AtomicInteger(1);
 
     // *** receiving ***
     private final ReceiveThread receiveThread;
     private final Reconstructor reconstructor;
     // contains (packetId, sourceId)
     private final HashSet<Pair<Integer, Integer>> receivedIds = new HashSet<>(); // TODO: garbage collect
+
+    private final ExecutorService executor = Executors.newFixedThreadPool(3);
 
     public PerfectLink(int processId, Map<Integer, FullAddress> addresses, DatagramSocket socket, Consumer<PLMessage> deliverCallback) {
         this.processId = processId;
@@ -67,13 +72,17 @@ public class PerfectLink {
     }
 
     public void send(String msg, Integer processId) {
-        int messageId = nextMessageId++;
-        getSendQueueFor(processId).send(messageId, msg);
+        executor.submit(() -> {
+            int messageId = nextMessageId.getAndIncrement();
+            getSendQueueFor(processId).send(messageId, msg);
+        });
     }
 
     public void send(byte[] msgBytes, Integer processId) {
-        int messageId = nextMessageId++;
-        getSendQueueFor(processId).send(messageId, msgBytes);
+        executor.submit(() -> {
+            int messageId = nextMessageId.getAndIncrement();
+            getSendQueueFor(processId).send(messageId, msgBytes);
+        });
     }
 
     public void close() {

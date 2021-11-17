@@ -32,6 +32,8 @@ class AckCounter {
 // distinct meaning from messageId and sourceId (which are used
 // by PerfectLink)
 public class URB {
+    private static final boolean DEBUG_PRINT = false;
+
     private static final int HEADER_SIZE = 8; // bytes
 
     private final int processId;
@@ -68,13 +70,22 @@ public class URB {
         int urbMessageId = BigEndianCoder.decodeInt(bytes, 0);
         int urbSourceId = BigEndianCoder.decodeInt(bytes, 4);
 
+        if (DEBUG_PRINT) {
+            System.out.println("PL DELIVER (" + urbMessageId + " urb-FROM " + urbSourceId + ") pl-FROM " + message.sourceId);
+        }
+
         Pair<Integer, Integer> key = new Pair<>(urbMessageId, urbSourceId);
         if (!delivered.contains(key)) {
+            if (DEBUG_PRINT) {
+                System.out.println("> not yet delivered");
+            }
             boolean[] rebroadcast = {false};
 
 //            System.out.println("URB RECEIVE " + urbMessageId + " FROM " + urbSourceId);
             AckCounter ackCounter = received.computeIfAbsent(key, ignored -> {
-//                System.out.println("> is new");
+                if (DEBUG_PRINT) {
+                    System.out.println("> message is new, create ack counter");
+                }
                 rebroadcast[0] = true;
                 String text = new String(bytes, HEADER_SIZE, bytes.length - HEADER_SIZE);
                 AckCounter counter = new AckCounter(new URBMessage(urbMessageId, urbSourceId, text));
@@ -84,26 +95,36 @@ public class URB {
 
             ackCounter.acknowledged.add(message.sourceId);
             if (ackCounter.acknowledged.size() > totalNumProcesses / 2) {
-//                System.out.println("> URB DELIVER");
-//                    System.out.println("50% + 1 acknowledged, delivering");
+                if (DEBUG_PRINT) {
+                    System.out.println("> ack counter over threshold (" + ackCounter.acknowledged.size() + "), deliver");
+                }
                 received.remove(key);
+                delivered.add(key);
+                deliverCallback.accept(ackCounter.message);
+//                rebroadcast[0] = false;
 
                 // broadcast next message in queue
                 String msg = waiting.poll();
                 if (msg != null) {
+                    if (DEBUG_PRINT) {
+                        System.out.println("> broadcast next message in queue \"" + msg + "\"");
+                    }
                     broadcast(msg);
                 }
-
-                delivered.add(key);
-                System.out.println("URB DELIVER " + urbMessageId + " from " + urbSourceId);
-                deliverCallback.accept(ackCounter.message);
             }
 
             // TODO: rebroadcast to everyone except the original sender and the current sender
             //  for those two, just send an ack
             // rebroadcast
             if (rebroadcast[0]) {
+                if (DEBUG_PRINT) {
+                    System.out.println("> rebroadcast");
+                }
                 broadcastSend(message.getTextBytes());
+            }
+        } else {
+            if (DEBUG_PRINT) {
+                System.out.println("> already urb-delivered, ignore");
             }
         }
     }
@@ -111,7 +132,9 @@ public class URB {
     private void broadcastSend(byte[] bytes) {
         int urbMessageId = BigEndianCoder.decodeInt(bytes, 0);
         int urbSourceId = BigEndianCoder.decodeInt(bytes, 4);
-        System.out.println("URB SEND " + urbMessageId + " FROM " + urbSourceId);
+        if (DEBUG_PRINT) {
+            System.out.println("URB SEND " + urbMessageId + " FROM " + urbSourceId);
+        }
 
         for (int pid : addresses.keySet()) {
             if (pid != processId) {
@@ -121,12 +144,20 @@ public class URB {
     }
 
     public synchronized void broadcast(String msg) {
+        if (DEBUG_PRINT) {
+            System.out.println("URB FIRST BROADCAST \"" + msg + "\"");
+        }
+
 //        System.out.println("try broadcast message: " + msg);
         if (received.size() >= Constants.URB_SENDING_BATCH_SIZE) {
-//            System.out.println("enqueue");
+            if (DEBUG_PRINT) {
+                System.out.println("> batch full, enqueue");
+            }
             waiting.offer(msg);
         } else {
-//            System.out.println("broadcast");
+            if (DEBUG_PRINT) {
+                System.out.println("> batch has space, send");
+            }
             int urbMessageId = nextUrbMessageId++;
             byte[] msgBytes = msg.getBytes();
             byte[] bytes = new byte[HEADER_SIZE + msgBytes.length];
@@ -140,7 +171,6 @@ public class URB {
 
             broadcastSend(bytes);
         }
-//        System.out.println("new state: received: " + received.size() + ", waiting: " + waiting.size());
     }
 
     public void close() {
