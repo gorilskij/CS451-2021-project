@@ -268,7 +268,12 @@ public class Main {
             }
         }
 
-//        runPerfectLinksTest(parser, myPort, addresses);
-        runFifoTest(parser, myPort, addresses);
+        if (parser.config().contains("perfect-links")) {
+            System.out.println("Running perfect links");
+            runPerfectLinksTest(parser, myPort, addresses);
+        } else {
+            System.out.println("Running fifo");
+            runFifoTest(parser, myPort, addresses);
+        }
     }
 }
