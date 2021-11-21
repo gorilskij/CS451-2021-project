@@ -1,6 +1,7 @@
 package cs451.perfect_links;
 
 import cs451.Constants;
+import cs451.ExecutorSingleton;
 import cs451.base.FullAddress;
 import cs451.base.Pair;
 
@@ -20,7 +21,6 @@ public class SendThread {
     // indexed by (packetId, destinationId)
     private final Map<Pair<Integer, Integer>, DatagramPacket> sendingPackets = new ConcurrentHashMap<>();
 
-    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(Constants.PL_NUM_SENDER_THREADS);
     private ScheduledFuture<?> taskHandle = null;
 
     private final Runnable flushSendQueues;
@@ -35,7 +35,7 @@ public class SendThread {
         if (taskHandle != null) {
             throw new IllegalStateException("multiple start");
         }
-        taskHandle = scheduler.scheduleAtFixedRate(this::run, 0, Constants.PL_SENDING_INTERVAL, MILLISECONDS);
+        taskHandle = ExecutorSingleton.scheduler.scheduleAtFixedRate(this::run, 0, Constants.PL_SENDING_INTERVAL, MILLISECONDS);
     }
 
     public void interrupt() {

@@ -19,9 +19,6 @@ public class ReceiveThread extends Thread {
     private final Consumer<DatagramPacket> normalPacketCallback;
     private final BiConsumer<Integer, Integer> acknowledgementCallback;
 
-    // slow and broken
-//    private final ExecutorService executor = Executors.newFixedThreadPool(Constants.PL_NUM_RECEIVER_THREADS);
-
     ReceiveThread(DatagramSocket socket, Consumer<DatagramPacket> normalPacketCallback, BiConsumer<Integer, Integer> acknowledgementCallback) {
         this.socket = socket;
         this.normalPacketCallback = normalPacketCallback;

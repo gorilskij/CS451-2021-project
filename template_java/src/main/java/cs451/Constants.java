@@ -24,8 +24,9 @@ public class Constants {
 
     public static final int SOCKET_SO_TIMEOUT = 10;
 
+    public static final int SCHEDULER_THREADS = 5;
+
     // perfect links parameters
-    public static final int PL_NUM_SENDER_THREADS = 2;
     public static final int PL_SENDING_INTERVAL = 10; // ms
     public static final int PL_SENDING_BATCH_SIZE = 100;
     public static final int PL_MIN_ACKS_PER_PACKET = 100;

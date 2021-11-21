@@ -1,22 +1,22 @@
 package cs451.uniform_reliable_broadcast;
 
 import cs451.Constants;
+import cs451.ExecutorSingleton;
 import cs451.base.BigEndianCoder;
 import cs451.base.FullAddress;
 import cs451.base.Pair;
 import cs451.best_effort_broadcast.BEBImpl;
 import cs451.interfaces.BEB;
-import cs451.interfaces.PerfectLink;
 import cs451.interfaces.URB;
 import cs451.message.PLMessage;
 import cs451.message.URBMessage;
-import cs451.perfect_links.PerfectLinkImpl;
 
 import java.net.DatagramSocket;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
@@ -73,8 +73,8 @@ public class URBImpl implements URB {
     private final BlockingQueue<String> awaitingBroadcast = new LinkedBlockingQueue<>();
 
     private final BlockingQueue<PLMessage> bebDeliverQueue = new LinkedBlockingQueue<>();
-    private final ExecutorService executor = Executors.newFixedThreadPool(5);
-    private final Future<Object> executorHandle;
+
+    private final AtomicBoolean running = new AtomicBoolean(true);
 
     public URBImpl(int processId, Map<Integer, FullAddress> addresses, DatagramSocket socket, Consumer<URBMessage> deliver) {
         this.processId = processId;
@@ -91,8 +91,8 @@ public class URBImpl implements URB {
         });
         this.deliver = deliver;
 
-        executorHandle = executor.submit(() -> {
-            while (true) {
+        ExecutorSingleton.submit(() -> {
+            while (running.get()) {
                 bebProcess();
             }
         });
@@ -191,7 +191,7 @@ public class URBImpl implements URB {
 
     @Override
     public void close() {
-        executorHandle.cancel(true);
+        running.set(false);
         beb.close();
     }
 }

@@ -24,6 +24,9 @@ public class Main {
         //write/flush output file if necessary
         System.out.println("Writing output.");
         eventHistory.writeToFile(outputFilePath);
+
+        System.out.println("Shutting down thread pools");
+        ExecutorSingleton.shutdown();
     }
 
     private static void initSignalHandlers() {
@@ -148,7 +151,9 @@ public class Main {
         System.out.println("Expecting " + expectedMessages + " messages");
         int[] totalMessages = new int[]{0};
         FIFO fifo = new FIFOImpl(parser.myId(), addresses, socket, delivered -> {
-            eventHistory.logDelivery(delivered.getFifoSourceId(), delivered.getFifoMessageId());
+            // retrieve payload id
+            int id = Integer.parseInt(delivered.getText());
+            eventHistory.logDelivery(delivered.getFifoSourceId(), id);
 
             if (start[0] < 0) {
                 start[0] = System.nanoTime();
@@ -176,11 +181,17 @@ public class Main {
         });
 
         for (int i = 0; i < numMessages; i++) {
-            fifo.fifoBroadcast("" + i + " from " + parser.myId());
+            fifo.fifoBroadcast("" + i);
         }
     }
 
     public static void main(String[] args) {
+        if (args.length == 0) {
+            args = new String[]{
+                    "--id", "1", "--hosts", "hosts", "--output", "1.output", "fifo.config"
+            };
+        }
+
         Parser parser = new Parser(args);
         parser.parse();
 
