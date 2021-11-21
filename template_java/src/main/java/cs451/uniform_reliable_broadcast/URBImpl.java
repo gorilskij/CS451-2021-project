@@ -66,7 +66,7 @@ class URBImpl extends URB {
     private final BlockingQueue<String> awaitingBroadcast = new LinkedBlockingQueue<>();
 
     private final BlockingQueue<PLMessage> bebDeliverQueue = new LinkedBlockingQueue<>();
-    private final ExecutorService executor = Executors.newFixedThreadPool(1);
+    private final ExecutorService executor = Executors.newFixedThreadPool(5);
     private final Future<Object> executorHandle;
 
     /**
