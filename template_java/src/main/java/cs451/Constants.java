@@ -27,8 +27,7 @@ public class Constants {
     public static final int PL_SENDING_INTERVAL = 10; // ms
     public static final int PL_SENDING_BATCH_SIZE = 100;
     public static final int PL_MIN_ACKS_PER_PACKET = 100;
-    public static final int PL_NUM_RECEIVER_THREADS = 2;
 
     // uniform reliable broadcast parameters
-    public static final int URB_SENDING_BATCH_SIZE = 2; // also applies to FIFO
+    public static final int URB_SENDING_BATCH_SIZE = 100; // also applies to FIFO
 }

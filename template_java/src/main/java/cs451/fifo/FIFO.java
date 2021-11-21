@@ -43,11 +43,9 @@ public class FIFO {
     private final Map<Integer, DeliveryQueue> deliveryQueues = new ConcurrentHashMap<>();
 
     public FIFO(int processId, Map<Integer, FullAddress> addresses, DatagramSocket socket, Consumer<FIFOMessage> deliverCallback) {
-        this.urb = new URB(processId, addresses, socket, urbMessage -> {
-            deliveryQueues
-                    .computeIfAbsent(urbMessage.sourceId, ignored -> new DeliveryQueue(deliverCallback))
-                    .deliver(new FIFOMessage(urbMessage));
-        });
+        this.urb = URB.newURB(processId, addresses, socket, urbMessage -> deliveryQueues
+                .computeIfAbsent(urbMessage.sourceId, ignored -> new DeliveryQueue(deliverCallback))
+                .deliver(new FIFOMessage(urbMessage)));
     }
 
     public synchronized void broadcast(String msg) {
