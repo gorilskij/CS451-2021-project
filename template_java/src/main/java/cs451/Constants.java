@@ -22,6 +22,8 @@ public class Constants {
     public static final int MAX_PACKET_SIZE = 65_000;
 
 
+    public static final int SOCKET_SO_TIMEOUT = 10;
+
     // perfect links parameters
     public static final int PL_NUM_SENDER_THREADS = 2;
     public static final int PL_SENDING_INTERVAL = 10; // ms

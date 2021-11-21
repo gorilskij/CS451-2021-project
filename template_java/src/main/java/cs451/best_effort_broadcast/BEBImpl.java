@@ -34,14 +34,14 @@ public class BEBImpl implements BEB {
         }
     }
 
-//    private void bebBroadcast(byte[] bytes, Set<Integer> exclude) {
-//        for (int destinationId = 1; destinationId <= totalNumProcesses; destinationId++) {
-//            if (destinationId != processId && !exclude.contains(destinationId)) {
-//                perfectLink.plSend(bytes, destinationId);
-//            }
-//        }
-//    }
-
+    @Override
+    public void bebBroadcast(byte[] bytes, Set<Integer> excludeIds) {
+        for (int destinationId = 1; destinationId <= totalNumProcesses; destinationId++) {
+            if (destinationId != processId && !excludeIds.contains(destinationId)) {
+                perfectLink.plSend(bytes, destinationId);
+            }
+        }
+    }
 
     @Override
     public void close() {

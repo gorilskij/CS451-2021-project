@@ -36,7 +36,11 @@ class URBMessageUUID extends Pair<Integer, Integer> {
 
 class PendingMessage {
     final String msg;
-    final Set<Integer> acks = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    // acksSent is always a subset of acksReceived
+    // acksReceived are the processes that we know have seen the message
+    // acksSent are the processes we have sent an ack to
+    final Set<Integer> acksReceived = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    final Set<Integer> acksSent = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     PendingMessage(String msg) {
         this.msg = msg;
@@ -60,7 +64,7 @@ public class URBImpl implements URB {
 
     private final Consumer<URBMessage> deliver;
 
-    private int nextMessageId = 0;
+    private int nextMessageId = 1;
     private final Set<URBMessageUUID> delivered = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private final Map<URBMessageUUID, PendingMessage> pending = new ConcurrentHashMap<>();
 
@@ -112,24 +116,25 @@ public class URBImpl implements URB {
             return;
         }
 
-        Set<Integer> acks;
+        PendingMessage pendingMessage;
         if (pending.containsKey(messageUUID)) {
             // message already seen, waiting for 50% + 1
-            acks = pending.get(messageUUID).acks;
-            acks.add(message.getPlSourceId()); // original broadcaster and this process already acknowledged
+            pendingMessage = pending.get(messageUUID);
+            pendingMessage.acksReceived.add(message.getPlSourceId()); // original broadcaster and this process already acknowledged
         } else {
             // message never seen
             String text = new String(bytes, HEADER_SIZE, bytes.length - HEADER_SIZE);
-            PendingMessage pendingMessage = new PendingMessage(text);
-            pendingMessage.acks.add(urbSourceId); // original broadcaster
-            pendingMessage.acks.add(message.getPlSourceId()); // last rebroadcaster
-            pendingMessage.acks.add(processId); // this process
+            pendingMessage = new PendingMessage(text);
+            pendingMessage.acksReceived.add(urbSourceId); // original broadcaster
+            pendingMessage.acksReceived.add(message.getPlSourceId()); // last rebroadcaster
+            pendingMessage.acksReceived.add(processId); // this process
+            pendingMessage.acksSent.add(processId);
             pending.put(messageUUID, pendingMessage);
-            acks = pendingMessage.acks;
         }
         tryDeliver(messageUUID);
 
-        beb.bebBroadcast(message.getTextBytes());
+        beb.bebBroadcast(message.getTextBytes(), pendingMessage.acksSent);
+        pendingMessage.acksSent.addAll(pendingMessage.acksReceived);
     }
 
     private byte[] makeBytes(int messageId, String text) {
@@ -143,7 +148,7 @@ public class URBImpl implements URB {
 
     private void tryDeliver(URBMessageUUID messageUUID) {
         PendingMessage pendingMessage = pending.get(messageUUID);
-        if (pendingMessage.acks.size() > totalNumProcesses / 2) {
+        if (pendingMessage.acksReceived.size() > totalNumProcesses / 2) {
             if (messageUUID.getSourceId() == processId) {
                 // own message
                 String nextMsg = awaitingBroadcast.poll();
@@ -163,7 +168,8 @@ public class URBImpl implements URB {
         int messageId = nextMessageId++;
         byte[] bytes = makeBytes(messageId, msg);
         PendingMessage pendingMessage = new PendingMessage(msg);
-        pendingMessage.acks.add(processId);
+        pendingMessage.acksReceived.add(processId);
+        pendingMessage.acksSent.add(processId);
         URBMessageUUID messageUUID = new URBMessageUUID(messageId, processId);
         pending.put(messageUUID, pendingMessage);
         tryDeliver(messageUUID);

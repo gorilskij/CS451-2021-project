@@ -2,6 +2,7 @@ package cs451.perfect_links;
 
 import cs451.Constants;
 import cs451.base.FullAddress;
+import cs451.base.Pair;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -13,16 +14,19 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static java.util.concurrent.TimeUnit.*;
 
 public class SendThread {
+    private final Map<Integer, FullAddress> addresses;
     private final DatagramSocket socket;
 
-    private final Map<Integer, DatagramPacket> sendingPackets = new ConcurrentHashMap<>();
+    // indexed by (packetId, destinationId)
+    private final Map<Pair<Integer, Integer>, DatagramPacket> sendingPackets = new ConcurrentHashMap<>();
 
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(Constants.PL_NUM_SENDER_THREADS);
     private ScheduledFuture<?> taskHandle = null;
 
     private final Runnable flushSendQueues;
 
-    public SendThread(DatagramSocket socket, Runnable flushSendQueues) {
+    public SendThread(Map<Integer, FullAddress> addresses, DatagramSocket socket, Runnable flushSendQueues) {
+        this.addresses = addresses;
         this.socket = socket;
         this.flushSendQueues = flushSendQueues;
     }
@@ -49,12 +53,12 @@ public class SendThread {
         );
     }
 
-    public void sendPacket(Packet packet, FullAddress destination) {
-        DatagramPacket udpPacket = makeUdpPacket(packet, destination);
-
+    public void sendPacket(Packet packet, int destinationId) {
+        DatagramPacket udpPacket = makeUdpPacket(packet, addresses.get(destinationId));
         if (packet.packetId != 0) {
             // for non-ack packets
-            sendingPackets.put(packet.packetId, udpPacket);
+            Pair<Integer, Integer> key = new Pair<>(packet.packetId, destinationId);
+            sendingPackets.put(key, udpPacket);
         }
 
         try {
@@ -63,8 +67,9 @@ public class SendThread {
         }
     }
 
-    public void acknowledge(int packetId) {
-        sendingPackets.remove(packetId);
+    public void acknowledge(int packetId, int destinationId) {
+        Pair<Integer, Integer> key = new Pair<>(packetId, destinationId);
+        sendingPackets.remove(key);
     }
 
     private final AtomicInteger batch = new AtomicInteger(0);

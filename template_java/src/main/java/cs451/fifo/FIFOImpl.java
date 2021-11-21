@@ -16,7 +16,7 @@ import java.util.function.Consumer;
 
 class DeliveryQueue {
     // FIFO enforcement
-    private int nextDeliveryId = 0;
+    private int nextDeliveryId = 1;
     private final Queue<FIFOMessage> queue = new PriorityBlockingQueue<>(100, Comparator.comparing(FIFOMessage::getFifoMessageId));
     private final Consumer<FIFOMessage> deliverCallback;
 

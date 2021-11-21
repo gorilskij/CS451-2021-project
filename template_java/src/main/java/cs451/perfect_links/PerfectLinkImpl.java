@@ -17,7 +17,6 @@ import java.util.function.Consumer;
 
 public class PerfectLinkImpl implements PerfectLink {
     private final int processId;
-    private final Map<Integer, FullAddress> addresses;
 
     // *** sending ***
     private final Map<Integer, SendQueue> sendQueues = new ConcurrentHashMap<>();
@@ -34,10 +33,9 @@ public class PerfectLinkImpl implements PerfectLink {
 
     public PerfectLinkImpl(int processId, Map<Integer, FullAddress> addresses, DatagramSocket socket, Consumer<PLMessage> deliver) {
         this.processId = processId;
-        this.addresses = addresses;
         this.reconstructor = new Reconstructor(deliver);
 
-        sendThread = new SendThread(socket, () -> {
+        sendThread = new SendThread(addresses, socket, () -> {
             for (SendQueue queue : sendQueues.values()) {
                 queue.flush();
             }
@@ -65,12 +63,8 @@ public class PerfectLinkImpl implements PerfectLink {
         receiveThread.start();
     }
 
-    private SendQueue getSendQueueFor(Integer pid) {
-        FullAddress destination = addresses.get(pid);
-        if (destination == null) {
-            throw new IllegalStateException("no destination for pid " + pid);
-        }
-        return sendQueues.computeIfAbsent(pid, ignored -> new SendQueue(destination, processId, sendThread));
+    private SendQueue getSendQueueFor(Integer destinationId) {
+        return sendQueues.computeIfAbsent(destinationId, ignored -> new SendQueue(processId, destinationId, sendThread));
     }
 
     @Override

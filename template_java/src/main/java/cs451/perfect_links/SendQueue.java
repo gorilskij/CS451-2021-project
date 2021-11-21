@@ -4,40 +4,42 @@ import cs451.base.BigEndianCoder;
 import cs451.Constants;
 import cs451.base.FullAddress;
 
-import java.net.DatagramPacket;
 import java.util.ArrayList;
-import java.util.Deque;
-import java.util.Queue;
+import java.util.concurrent.BlockingDeque;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.LinkedBlockingQueue;
 
 public class SendQueue {
-    private final FullAddress destination;
     private final int sourceId;
+    private final int destinationId;
     private final SendThread sendThread;
 
-    private final Deque<MessageFragment> queue = new LinkedBlockingDeque<>();
+    private final BlockingDeque<MessageFragment> queue = new LinkedBlockingDeque<>();
     private int totalQueueSize = 0;
 
-    private final Queue<Integer> ackQueue = new LinkedBlockingQueue<>();
+    private final BlockingQueue<Integer> ackQueue = new LinkedBlockingQueue<>();
 
     private int nextPacketId = 1; // 0 is used to identify ack packets
 
-    public SendQueue(FullAddress destination, int sourceId, SendThread sendThread) {
-        this.destination = destination;
+    public SendQueue(int sourceId, int destinationId, SendThread sendThread) {
         this.sourceId = sourceId;
+        this.destinationId = destinationId;
         this.sendThread = sendThread;
     }
 
     private synchronized void sendMessageFragment(MessageFragment fragment) {
-        queue.offer(fragment);
+        try {
+            queue.put(fragment);
+        } catch (InterruptedException ignored) {
+        }
         totalQueueSize += fragment.size();
 
 //        testQueue();
 
         Packet maybePacket = tryMakePacket();
         if (maybePacket != null) {
-            sendThread.sendPacket(maybePacket, destination);
+            sendThread.sendPacket(maybePacket, destinationId);
         }
     }
 
@@ -46,20 +48,23 @@ public class SendQueue {
     }
 
     public void sendAck(int packetId) {
-        ackQueue.offer(packetId);
+        try {
+            ackQueue.put(packetId);
+        } catch (InterruptedException ignored) {
+        }
         Packet maybePacket = tryMakeAckPacket();
         if (maybePacket != null) {
-            sendThread.sendPacket(maybePacket, destination);
+            sendThread.sendPacket(maybePacket, destinationId);
         }
     }
 
     public void flush() {
         Packet maybePacket;
         while ((maybePacket = forceMakeAckPacket()) != null) {
-            sendThread.sendPacket(maybePacket, destination);
+            sendThread.sendPacket(maybePacket, destinationId);
         }
         while ((maybePacket = forceMakePacket()) != null) {
-            sendThread.sendPacket(maybePacket, destination);
+            sendThread.sendPacket(maybePacket, destinationId);
         }
     }
 
@@ -89,7 +94,11 @@ public class SendQueue {
             }
 
 //            System.out.println("space remaining: " + spaceRemaining);
-            MessageFragment nextFragment = queue.poll();
+            MessageFragment nextFragment = null;
+            try {
+                nextFragment = queue.take();
+            } catch (InterruptedException ignored) {
+            }
             int nextFragmentSize = nextFragment.size();
             totalQueueSize -= nextFragmentSize;
             if (nextFragmentSize <= spaceRemaining) {
@@ -99,7 +108,10 @@ public class SendQueue {
                 MessageFragment[] halves = nextFragment.split(spaceRemaining);
                 fragments.add(halves[0]);
                 totalLength += halves[0].size();
-                queue.offerFirst(halves[1]);
+                try {
+                    queue.putFirst(halves[1]);
+                } catch (InterruptedException ignored) {
+                }
                 totalQueueSize += halves[1].size();
 //                System.out.println("queue +1= " + halves[1].size());
             }
@@ -143,7 +155,10 @@ public class SendQueue {
         BigEndianCoder.encodeInt(sourceId, bytes, 4);
         BigEndianCoder.encodeInt(takeAcks, bytes, 8);
         for (int i = 0; i < takeAcks; i += 1) {
-            BigEndianCoder.encodeInt(ackQueue.poll(), bytes, i * 4 + 12);
+            try {
+                BigEndianCoder.encodeInt(ackQueue.take(), bytes, i * 4 + 12);
+            } catch (InterruptedException ignored) {
+            }
         }
         return new Packet(bytes);
     }

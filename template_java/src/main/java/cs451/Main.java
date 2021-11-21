@@ -69,7 +69,7 @@ public class Main {
         DatagramSocket socket;
         try {
             socket = new DatagramSocket(myPort);
-            socket.setSoTimeout(10);
+            socket.setSoTimeout(Constants.SOCKET_SO_TIMEOUT);
         } catch (SocketException e) {
             throw new Error(e);
         }
@@ -114,7 +114,7 @@ public class Main {
         // send
         if (!isReceiver) {
             for (int i = 0; i < numMessages; i++) {
-                perfectLink.plSend("" + i, receiverId);
+                perfectLink.plSend("" + i + " from " + parser.myId(), receiverId);
                 eventHistory.logBroadcast(i);
             }
         }
@@ -136,7 +136,7 @@ public class Main {
         DatagramSocket socket;
         try {
             socket = new DatagramSocket(myPort);
-            socket.setSoTimeout(10);
+            socket.setSoTimeout(Constants.SOCKET_SO_TIMEOUT);
         } catch (SocketException e) {
             throw new Error(e);
         }
@@ -146,7 +146,7 @@ public class Main {
 
         int expectedMessages = numMessages * parser.hosts().size();
         System.out.println("Expecting " + expectedMessages + " messages");
-        int[] totalMessages = new int[] {0};
+        int[] totalMessages = new int[]{0};
         FIFO fifo = new FIFOImpl(parser.myId(), addresses, socket, delivered -> {
             eventHistory.logDelivery(delivered.getFifoSourceId(), delivered.getFifoMessageId());
 
@@ -175,27 +175,12 @@ public class Main {
             }
         });
 
-//        sleepUntilNextNSecondMark(5);
-
         for (int i = 0; i < numMessages; i++) {
-            fifo.fifoBroadcast("" + i);
+            fifo.fifoBroadcast("" + i + " from " + parser.myId());
         }
     }
 
     public static void main(String[] args) {
-
-        // TODO: remove
-        if (args.length == 0) {
-            int id = 2;
-            args = new String[] {
-                    "--id", "" + id,
-                    "--hosts", "/Users/Gorilskij/Desktop/EPFL/Courses/DA/CS451-2021-project/template_java/hosts",
-                    "--output", id + ".output",
-//                    "/Users/Gorilskij/Desktop/EPFL/Courses/DA/CS451-2021-project/template_java/perfect-links.config"
-                    "/Users/Gorilskij/Desktop/EPFL/Courses/DA/CS451-2021-project/template_java/fifo.config"
-            };
-        }
-
         Parser parser = new Parser(args);
         parser.parse();
 
