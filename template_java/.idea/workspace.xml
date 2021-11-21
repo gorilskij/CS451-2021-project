@@ -4,7 +4,28 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="10e3e6df-7f63-40e7-a359-3ebbe6deb75a" name="Changes" comment="add urb send queue and receive queue" />
+    <list default="true" id="10e3e6df-7f63-40e7-a359-3ebbe6deb75a" name="Changes" comment="add urb send queue and receive queue">
+      <change afterPath="$PROJECT_DIR$/src/main/java/cs451/best_effort_broadcast/BEBImpl.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/cs451/interfaces/BEB.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/cs451/interfaces/FIFO.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/cs451/interfaces/PerfectLink.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/cs451/message/BEBMessage.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/2.output" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/3.output" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/4.output" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/fifo.config" beforeDir="false" afterPath="$PROJECT_DIR$/fifo.config" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/hosts" beforeDir="false" afterPath="$PROJECT_DIR$/hosts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/cs451/Main.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/cs451/Main.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/cs451/fifo/FIFO.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/cs451/fifo/FIFOImpl.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/cs451/message/FIFOMessage.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/cs451/message/FIFOMessage.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/cs451/message/Message.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/cs451/message/Message.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/cs451/message/PLMessage.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/cs451/message/PLMessage.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/cs451/message/URBMessage.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/cs451/message/URBMessage.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/cs451/perfect_links/PerfectLink.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/cs451/perfect_links/PerfectLinkImpl.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/cs451/uniform_reliable_broadcast/URB.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/cs451/interfaces/URB.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/cs451/uniform_reliable_broadcast/URBImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/cs451/uniform_reliable_broadcast/URBImpl.java" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -16,6 +37,7 @@
   <component name="FileTemplateManagerImpl">
     <option name="RECENT_TEMPLATES">
       <list>
+        <option value="Interface" />
         <option value="Class" />
       </list>
     </option>
@@ -43,8 +65,8 @@
     <setting file="file://$PROJECT_DIR$/src/main/java/cs451/perfect_links/MessageFragment.java" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/src/main/java/cs451/perfect_links/SendQueue.java" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/src/main/java/cs451/perfect_links/Reconstructor.java" root0="FORCE_HIGHLIGHTING" />
-    <setting file="file://$PROJECT_DIR$/src/main/java/cs451/uniform_reliable_broadcast/URB.java" root0="FORCE_HIGHLIGHTING" />
-    <setting file="file://$PROJECT_DIR$/src/main/java/cs451/perfect_links/PerfectLink.java" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/src/main/java/cs451/interfaces/URB.java" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/src/main/java/cs451/perfect_links/PerfectLinkImpl.java" root0="FORCE_HIGHLIGHTING" />
   </component>
   <component name="ProjectCodeStyleSettingsMigration">
     <option name="version" value="2" />
@@ -123,7 +145,7 @@
       <workItem from="1635773662935" duration="860000" />
       <workItem from="1636378286344" duration="88188000" />
       <workItem from="1637091314939" duration="12702000" />
-      <workItem from="1637238671631" duration="9391000" />
+      <workItem from="1637238671631" duration="11554000" />
     </task>
     <task id="LOCAL-00001" summary="untested implementation">
       <created>1634628729650</created>

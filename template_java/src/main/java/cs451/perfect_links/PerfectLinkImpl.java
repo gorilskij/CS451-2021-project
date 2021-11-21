@@ -3,6 +3,7 @@ package cs451.perfect_links;
 import cs451.base.BigEndianCoder;
 import cs451.base.FullAddress;
 import cs451.base.Pair;
+import cs451.interfaces.PerfectLink;
 import cs451.message.PLMessage;
 
 import java.net.DatagramSocket;
@@ -14,7 +15,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
-public class PerfectLink {
+public class PerfectLinkImpl implements PerfectLink {
     private final int processId;
     private final Map<Integer, FullAddress> addresses;
 
@@ -31,10 +32,10 @@ public class PerfectLink {
 
     private final ExecutorService executor = Executors.newFixedThreadPool(3);
 
-    public PerfectLink(int processId, Map<Integer, FullAddress> addresses, DatagramSocket socket, Consumer<PLMessage> deliverCallback) {
+    public PerfectLinkImpl(int processId, Map<Integer, FullAddress> addresses, DatagramSocket socket, Consumer<PLMessage> deliver) {
         this.processId = processId;
         this.addresses = addresses;
-        this.reconstructor = new Reconstructor(deliverCallback);
+        this.reconstructor = new Reconstructor(deliver);
 
         sendThread = new SendThread(socket, () -> {
             for (SendQueue queue : sendQueues.values()) {
@@ -72,17 +73,20 @@ public class PerfectLink {
         return sendQueues.computeIfAbsent(pid, ignored -> new SendQueue(destination, processId, sendThread));
     }
 
-    public void send(String msg, Integer processId) {
-        send(msg.getBytes(), processId);
+    @Override
+    public void plSend(String msg, Integer destinationId) {
+        plSend(msg.getBytes(), destinationId);
     }
 
-    public void send(byte[] msgBytes, Integer processId) {
+    @Override
+    public void plSend(byte[] msgBytes, Integer destinationId) {
         executor.submit(() -> {
             int messageId = nextMessageId.getAndIncrement();
-            getSendQueueFor(processId).send(messageId, msgBytes);
+            getSendQueueFor(destinationId).send(messageId, msgBytes);
         });
     }
 
+    @Override
     public void close() {
         sendThread.interrupt();
         receiveThread.interrupt();

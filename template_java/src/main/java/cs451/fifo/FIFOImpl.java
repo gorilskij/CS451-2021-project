@@ -1,8 +1,10 @@
 package cs451.fifo;
 
 import cs451.base.FullAddress;
+import cs451.interfaces.FIFO;
 import cs451.message.FIFOMessage;
-import cs451.uniform_reliable_broadcast.URB;
+import cs451.interfaces.URB;
+import cs451.uniform_reliable_broadcast.URBImpl;
 
 import java.net.DatagramSocket;
 import java.util.Comparator;
@@ -15,7 +17,7 @@ import java.util.function.Consumer;
 class DeliveryQueue {
     // FIFO enforcement
     private int nextDeliveryId = 0;
-    private final Queue<FIFOMessage> queue = new PriorityBlockingQueue<>(100, Comparator.comparing(message -> message.messageId));
+    private final Queue<FIFOMessage> queue = new PriorityBlockingQueue<>(100, Comparator.comparing(FIFOMessage::getFifoMessageId));
     private final Consumer<FIFOMessage> deliverCallback;
 
     DeliveryQueue(Consumer<FIFOMessage> deliverCallback) {
@@ -24,10 +26,10 @@ class DeliveryQueue {
     }
 
     public synchronized void deliver(FIFOMessage message) {
-        if (message.messageId == nextDeliveryId) {
+        if (message.getFifoMessageId() == nextDeliveryId) {
             deliverCallback.accept(message);
             nextDeliveryId++;
-            while (!queue.isEmpty() && queue.peek().messageId == nextDeliveryId) {
+            while (!queue.isEmpty() && queue.peek().getFifoMessageId() == nextDeliveryId) {
                 deliverCallback.accept(queue.poll());
                 nextDeliveryId++;
             }
@@ -37,21 +39,23 @@ class DeliveryQueue {
     }
 }
 
-public class FIFO {
+public class FIFOImpl implements FIFO {
     private final URB urb;
     // priority queues containing (urbMessageId, message) sorted by urbMessageId, messages waiting to be delivered in order, indexed by urbSourceId
     private final Map<Integer, DeliveryQueue> deliveryQueues = new ConcurrentHashMap<>();
 
-    public FIFO(int processId, Map<Integer, FullAddress> addresses, DatagramSocket socket, Consumer<FIFOMessage> deliverCallback) {
-        this.urb = URB.newURB(processId, addresses, socket, urbMessage -> deliveryQueues
-                .computeIfAbsent(urbMessage.sourceId, ignored -> new DeliveryQueue(deliverCallback))
+    public FIFOImpl(int processId, Map<Integer, FullAddress> addresses, DatagramSocket socket, Consumer<FIFOMessage> deliverCallback) {
+        this.urb = new URBImpl(processId, addresses, socket, urbMessage -> deliveryQueues
+                .computeIfAbsent(urbMessage.getUrbSourceId(), ignored -> new DeliveryQueue(deliverCallback))
                 .deliver(new FIFOMessage(urbMessage)));
     }
 
-    public synchronized void broadcast(String msg) {
-        urb.broadcast(msg);
+    @Override
+    public void fifoBroadcast(String msg) {
+        urb.urbBroadcast(msg);
     }
 
+    @Override
     public void close() {
         urb.close();
     }

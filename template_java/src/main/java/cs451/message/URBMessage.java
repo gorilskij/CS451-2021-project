@@ -1,15 +1,23 @@
 package cs451.message;
 
 public class URBMessage extends Message {
-    public URBMessage(int messageId, int sourceId, String text) {
-        super(messageId, sourceId, text);
+    public URBMessage(int urbMessageId, int urbSourceId, String text) {
+        super(urbMessageId, urbSourceId, text);
     }
 
-    public URBMessage(int messageId, int sourceId, byte[] textBytes) {
-        super(messageId, sourceId, textBytes);
+    public URBMessage(int urbMessageId, int urbSourceId, byte[] textBytes) {
+        super(urbMessageId, urbSourceId, textBytes);
     }
 
     public URBMessage(URBMessage message) {
         super(message);
+    }
+
+    public int getUrbMessageId() {
+        return messageId;
+    }
+
+    public int getUrbSourceId() {
+        return sourceId;
     }
 }

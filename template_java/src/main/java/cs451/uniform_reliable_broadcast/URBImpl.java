@@ -4,14 +4,17 @@ import cs451.Constants;
 import cs451.base.BigEndianCoder;
 import cs451.base.FullAddress;
 import cs451.base.Pair;
+import cs451.best_effort_broadcast.BEBImpl;
+import cs451.interfaces.BEB;
+import cs451.interfaces.PerfectLink;
+import cs451.interfaces.URB;
 import cs451.message.PLMessage;
 import cs451.message.URBMessage;
-import cs451.perfect_links.PerfectLink;
+import cs451.perfect_links.PerfectLinkImpl;
 
 import java.net.DatagramSocket;
 import java.util.Collections;
 import java.util.Map;
-import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -47,13 +50,13 @@ class PendingMessage {
 // note that urbMessageId and urbSourceId are different and have
 // distinct meaning from messageId and sourceId (which are used
 // by PerfectLink)
-class URBImpl extends URB {
+public class URBImpl implements URB {
     private static final int HEADER_SIZE = 8; // bytes
 
     private final int processId;
     private final int totalNumProcesses;
 
-    private final PerfectLink perfectLink;
+    private final BEB beb;
 
     private final Consumer<URBMessage> deliver;
 
@@ -69,15 +72,16 @@ class URBImpl extends URB {
     private final ExecutorService executor = Executors.newFixedThreadPool(5);
     private final Future<Object> executorHandle;
 
-    /**
-     * Assumes that processes are numbered continuously starting from 1
-     */
-    URBImpl(int processId, Map<Integer, FullAddress> addresses, DatagramSocket socket, Consumer<URBMessage> deliver) {
+    public URBImpl(int processId, Map<Integer, FullAddress> addresses, DatagramSocket socket, Consumer<URBMessage> deliver) {
         this.processId = processId;
         totalNumProcesses = addresses.size();
-        perfectLink = new PerfectLink(processId, addresses, socket, plMessage -> {
+        beb = new BEBImpl(processId, addresses, socket, bebMessage -> {
             try {
-                bebDeliverQueue.put(plMessage); // blocking
+                if (bebMessage.getPlSourceId() == processId) {
+                    System.out.println("process got a message from itself");
+                    System.exit(1);
+                }
+                bebDeliverQueue.put(bebMessage); // blocking
             } catch (InterruptedException ignored) {
             }
         });
@@ -90,7 +94,6 @@ class URBImpl extends URB {
         });
     }
 
-    // equivalent to plDeliver
     private void bebProcess() {
         PLMessage message;
         try {
@@ -113,36 +116,20 @@ class URBImpl extends URB {
         if (pending.containsKey(messageUUID)) {
             // message already seen, waiting for 50% + 1
             acks = pending.get(messageUUID).acks;
-            acks.add(message.sourceId); // original broadcaster and this process already acknowledged
+            acks.add(message.getPlSourceId()); // original broadcaster and this process already acknowledged
         } else {
             // message never seen
             String text = new String(bytes, HEADER_SIZE, bytes.length - HEADER_SIZE);
             PendingMessage pendingMessage = new PendingMessage(text);
             pendingMessage.acks.add(urbSourceId); // original broadcaster
-            pendingMessage.acks.add(message.sourceId); // last rebroadcaster
+            pendingMessage.acks.add(message.getPlSourceId()); // last rebroadcaster
             pendingMessage.acks.add(processId); // this process
             pending.put(messageUUID, pendingMessage);
             acks = pendingMessage.acks;
         }
         tryDeliver(messageUUID);
 
-        bebBroadcast(message.getTextBytes());
-    }
-
-    private void bebBroadcast(byte[] bytes) {
-        for (int destinationId = 1; destinationId <= totalNumProcesses; destinationId++) {
-            if (destinationId != processId) {
-                perfectLink.send(bytes, destinationId);
-            }
-        }
-    }
-
-    private void bebBroadcast(byte[] bytes, Set<Integer> exclude) {
-        for (int destinationId = 1; destinationId <= totalNumProcesses; destinationId++) {
-            if (destinationId != processId && !exclude.contains(destinationId)) {
-                perfectLink.send(bytes, destinationId);
-            }
-        }
+        beb.bebBroadcast(message.getTextBytes());
     }
 
     private byte[] makeBytes(int messageId, String text) {
@@ -180,11 +167,11 @@ class URBImpl extends URB {
         URBMessageUUID messageUUID = new URBMessageUUID(messageId, processId);
         pending.put(messageUUID, pendingMessage);
         tryDeliver(messageUUID);
-        bebBroadcast(bytes);
+        beb.bebBroadcast(bytes);
     }
 
     @Override
-    public void broadcast(String msg) {
+    public void urbBroadcast(String msg) {
         if (currentBatchSize.get() >= Constants.URB_SENDING_BATCH_SIZE) {
             try {
                 awaitingBroadcast.put(msg);
@@ -199,6 +186,6 @@ class URBImpl extends URB {
     @Override
     public void close() {
         executorHandle.cancel(true);
-        perfectLink.close();
+        beb.close();
     }
 }

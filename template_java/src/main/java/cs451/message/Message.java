@@ -2,8 +2,8 @@ package cs451.message;
 
 // Note that PLMessage and URBMessage are internally the same but semantically different
 public abstract class Message {
-    public final int messageId;
-    public final int sourceId;
+    final int messageId;
+    final int sourceId;
     private String text = null;
     private byte[] textBytes = null;
 

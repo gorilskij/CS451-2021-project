@@ -1,9 +1,10 @@
 package cs451;
 
 import cs451.base.FullAddress;
-import cs451.fifo.FIFO;
-import cs451.perfect_links.PerfectLink;
-import cs451.uniform_reliable_broadcast.URB;
+import cs451.fifo.FIFOImpl;
+import cs451.interfaces.FIFO;
+import cs451.interfaces.PerfectLink;
+import cs451.perfect_links.PerfectLinkImpl;
 
 import java.io.IOException;
 import java.net.*;
@@ -13,24 +14,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class Main {
-    // big strings used for debugging
-    // 1 kilobyte
-    private static final String s1kb = "" +
-            "FYrF0Pn7unCyK/iMZMzumDfjqcuOzWHrQcS9+PtfhyHmGc6w+vfM2rnUa9YbWjl+8kKBpDZg8EOuDYzT/Aeiakf30O9rw18FmvRE" +
-            "rKj0XosNgPwznzhxJ1LNPOtnKoQmF55+MGl/ar4E1UnRAUqoPQrOdUbDMo2qkZv2dzSTC+XcN1alv+Jr2Psyzw5i6S8Z7lGNAXGf" +
-            "x7HKHqlL4+WQNJP+BvxUvCIVhTHSr80KY/z7z2ltAPzWqTtXcAhSzxC8H8dyNkUbsIQwGzym+nDVP1+/i9HG4nieG4Nvkr4egbek" +
-            "jIHDjdgJPURcsWq7NJClLrZASiRSiQ0OcBSsIb8Oga8l9lojLZRhh1ZCYhD4wE41zg7TUnd1FKqgvXmn0MuHchaDHIkBwylT6hNb" +
-            "zE2dhRc76DMDvWxOQcBQYK795wDTk/MvDufaoIZOBV4c3hf7R6XGerONi1g94qD1q8YJSLYVD9wyhQ6hyfkiO3BfPhSwmz9RYWXc" +
-            "8GyXGFls1lx7ZUMrMZAkflCSytameeITkf6OYLI01Ca4DWy+vzKOSmZwApcRoJ6+5SrJZzzMAZOZHyjSf0m6ELV9sR5GzRBBM3h6" +
-            "h6/zuLelXn5ltDv03bENbEW7hdxC88A5cu4znEq8xDpNmioF6EwFiqHA9X4O+iiRNl4yax01eoT1k5nNIooyRHASRoNdT5zGR9vr" +
-            "ckK2DzIIsIH7UJ0fF9Zi6Ffdrq2JOFRuKC3Tig99R5bAOWqqeFgHXSzJxK/Cvffy1BD4M6BZv0+oQTYT1pKfgesW7CV++INnp+JN" +
-            "FfWhAEzb0Be1YrZa1A/hoXzqHvEA9qTmnCyBKMLXJM22gORBuvePreGXkyc5f+KILhrwE+qO31RIPoHW6yA9JH8S+eK7RzdO+Nbq" +
-            "xIVovE6qZh2JLaJydHdliI47+O36RCzHzzx4vIAHLwMaDQV8wHP3MNoaRCLyoDbKlcANGEva7PD9V+jycaSGucgvnW6lWm+RaSPb";
-    // 10 kilobytes
-    private static final String s10kb = s1kb.repeat(10);
-    // 100 kilobytes
-    private static final String s100kb = s10kb.repeat(10);
-
     private static final EventHistory eventHistory = new EventHistory();
     private static String outputFilePath;
 
@@ -101,8 +84,8 @@ public class Main {
         int[] totalMessages = {0};
 
         System.out.println("begin listening");
-        PerfectLink perfectLink = new PerfectLink(parser.myId(), addresses, socket, delivered -> {
-            eventHistory.logDelivery(delivered.sourceId, delivered.messageId);
+        PerfectLink perfectLink = new PerfectLinkImpl(parser.myId(), addresses, socket, delivered -> {
+            eventHistory.logDelivery(delivered.getPlSourceId(), delivered.getPlSourceId());
 
 //            System.out.println("deliver " + delivered.getText());
 
@@ -131,7 +114,7 @@ public class Main {
         // send
         if (!isReceiver) {
             for (int i = 0; i < numMessages; i++) {
-                perfectLink.send("" + i, receiverId);
+                perfectLink.plSend("" + i, receiverId);
                 eventHistory.logBroadcast(i);
             }
         }
@@ -161,22 +144,15 @@ public class Main {
 
         long[] start = {-1};
 
-        String sendMessage = "hi";
-
         int expectedMessages = numMessages * parser.hosts().size();
         System.out.println("Expecting " + expectedMessages + " messages");
         int[] totalMessages = new int[] {0};
-        FIFO fifo = new FIFO(parser.myId(), addresses, socket, delivered -> {
-            eventHistory.logDelivery(delivered.sourceId, delivered.messageId);
+        FIFO fifo = new FIFOImpl(parser.myId(), addresses, socket, delivered -> {
+            eventHistory.logDelivery(delivered.getFifoSourceId(), delivered.getFifoMessageId());
 
             if (start[0] < 0) {
                 start[0] = System.nanoTime();
             }
-
-//            if (!delivered.getText().equals(sendMessage)) {
-//                System.out.println("wrong message");
-//                System.exit(1);
-//            }
 
             totalMessages[0] += 1;
             if (totalMessages[0] >= expectedMessages) {
@@ -199,11 +175,10 @@ public class Main {
             }
         });
 
-        sleepUntilNextNSecondMark(5);
+//        sleepUntilNextNSecondMark(5);
 
         for (int i = 0; i < numMessages; i++) {
-//            fifo.broadcast(sendMessage);
-            fifo.broadcast("" + i);
+            fifo.fifoBroadcast("" + i);
         }
     }
 
