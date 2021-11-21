@@ -47,7 +47,7 @@ public class URB {
 
     // (urbMessageId, urbSourceId)
     private final Set<Pair<Integer, Integer>> delivered = Collections.newSetFromMap(new ConcurrentHashMap<>());
-    private int nextUrbMessageId = 0;
+    private int nextUrbMessageId = 1;
 
     private final Consumer<URBMessage> deliverCallback;
 
